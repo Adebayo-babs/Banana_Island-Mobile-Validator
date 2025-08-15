@@ -1,6 +1,10 @@
-package com.example.cardapp
+package com.example.cardapp.repository
 
 import android.util.Log
+import com.example.cardapp.model.BatchCard
+import com.example.cardapp.model.VerifiedCard
+import com.example.cardapp.model.database.BatchCardDao
+import com.example.cardapp.model.database.VerifiedCardDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,11 +37,11 @@ class CardRepository(
         private val BATCH_01_CARDS = listOf(
             "LAG1696317781", "LAG1696317782", "LAG1696317783", "LAG1696317784",
             "LAG1696317785", "LAG1696317786", "LAG1696317787", "LAG1696317788",
-            "LAG1696317789", "LAG1696317790", "LAG1696317795", "LAG1252171583"
+            "LAG1696317789", "LAG1696317790", "LAG1696317795", "LAG1252171582"
         )
 
         private val BATCH_02_CARDS = listOf(
-            "LAG1696317800", "LAG1696317801", "LAG1252171584",
+            "LAG1696317781", "LAG1696317801", "LAG1252171582",
             "LAG1696317803", "LAG1696317804", "LAG1696317805"
         )
 

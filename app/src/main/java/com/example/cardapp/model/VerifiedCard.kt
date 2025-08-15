@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

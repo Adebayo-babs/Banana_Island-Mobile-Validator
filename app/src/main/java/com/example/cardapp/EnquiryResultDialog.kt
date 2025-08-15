@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cardapp.model.CardInfo
+import com.example.cardapp.repository.CardRepository
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -45,14 +47,14 @@ fun EnquiryResultDialog(
                 if (enquiryResult.cardExists) {
                     // Found in batch
                     Text(
-                        text = "✅ Found in Batch",
+                        text = "Found in Batch",
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
                     enquiryResult.batchName?.let { batchName ->
                         Text(
-                            text = "📦 Batch: $batchName",
+                            text = "Batch: $batchName",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -62,12 +64,12 @@ fun EnquiryResultDialog(
 
                     if (enquiryResult.isVerified) {
                         Text(
-                            text = "✅ Status: Already Verified",
+                            text = "Status: Already Verified",
                             color = MaterialTheme.colorScheme.primary
                         )
                         enquiryResult.verifiedCard?.let { verified ->
                             Text(
-                                text = "📅 Verified: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(verified.verifiedAt)}",
+                                text = "Verified: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(verified.verifiedAt)}",
                                 fontSize = 14.sp
                             )
 //                            verified.holderName?.let { name ->

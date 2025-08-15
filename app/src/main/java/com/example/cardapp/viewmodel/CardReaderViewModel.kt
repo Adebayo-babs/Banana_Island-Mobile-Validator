@@ -1,7 +1,9 @@
-package com.example.cardapp
+package com.example.cardapp.viewmodel
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import com.example.cardapp.model.CardInfo
+import com.example.cardapp.repository.CardRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

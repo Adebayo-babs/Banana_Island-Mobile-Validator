@@ -1,10 +1,11 @@
-package com.example.cardapp
+package com.example.cardapp.model.database
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.example.cardapp.model.BatchCard
 import kotlinx.coroutines.flow.Flow
 
 @Dao

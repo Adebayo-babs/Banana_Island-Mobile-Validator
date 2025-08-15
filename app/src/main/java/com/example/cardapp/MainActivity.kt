@@ -18,11 +18,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.example.cardapp.model.CardInfo
+import com.example.cardapp.model.database.CardDatabase
+import com.example.cardapp.repository.CardRepository
+import com.example.cardapp.repository.OptimizedCardDataReader
 import com.example.cardapp.ui.theme.CardAppTheme
-import kotlinx.coroutines.CoroutineScope
+import com.example.cardapp.viewmodel.CardReaderViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class MainActivity : ComponentActivity() {
 
@@ -34,10 +41,13 @@ class MainActivity : ComponentActivity() {
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var techListsArray: Array<Array<String>>? = null
-    private val cardDataReader = CardDataReader()
+    private val cardDataReader = OptimizedCardDataReader()
 
 //    Database and repository
     private lateinit var cardRepository: CardRepository
+
+    // Track active reading job to prevent overlapping reads
+    private var readingJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +118,8 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableForegroundDispatch(this)
+        //Cancel any active reading operation
+        readingJob?.cancel()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -133,106 +145,160 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        // Run card reading in background thread
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+        // Cancel any previous reading operation
+        readingJob?.cancel()
+
+        // Use coroutines with proper error handling and timeouts
+        readingJob = lifecycleScope.launch {
             try {
+                Log.d(TAG, "=== STARTING FAST CARD READ ===")
+                val startTime = System.currentTimeMillis()
 
-                Log.d(TAG, "Processing NFC tag")
+                // Show immediate feedback to user
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
+                }
 
-                // Read card data using enhanced reader
-                val cardData = cardDataReader.readCardData(isoDep)
-
-                Log.d(TAG, "SCANNED CARD DATA")
-                Log.d(TAG, "Card ID: ${cardData.cardId}")
-                Log.d(TAG, "Holder Name: ${cardData.holderName}")
-
-                // Switch back to main thread for UI updates
-                CoroutineScope(Dispatchers.Main).launch {
-                    if (cardData.cardId != null) {
-
-                        // Perform verification against database
-                        performCardVerification(cardData, tag)
-
-                        Toast.makeText(this@MainActivity, "Card ID: ${cardData.cardId}", Toast.LENGTH_LONG).show()
-                    } else {
-                        val message = "Could not read card ID from scanned card"
-                        Log.w(TAG, message)
-                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                // OPTIMIZED: Read card data with aggressive timeout
+                val cardData = withContext(Dispatchers.IO) {
+                    withTimeout(2000L) { // 2 second max timeout
+                        cardDataReader.readCardDataAsync(isoDep)
                     }
                 }
 
+                val totalTime = System.currentTimeMillis() - startTime
+                Log.d(TAG, "=== CARD READ COMPLETED in ${totalTime}ms ===")
+                Log.d(TAG, "Card ID: ${cardData.cardId}")
+                Log.d(TAG, "Holder Name: ${cardData.holderName}")
+
+                // Process the card data on main thread
+                withContext(Dispatchers.Main) {
+                    if (cardData.cardId != null) {
+                        // Perform verification against database
+                        performCardVerification(cardData, tag, totalTime)
+
+//                        Toast.makeText(
+//                            this@MainActivity,
+//                            "${cardData.cardId}",
+//                            Toast.LENGTH_LONG
+//                        ).show()
+                    } else {
+                        val message = "Could not read card ID (read time: ${totalTime}ms)"
+                        Log.w(TAG, message)
+                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+
+                        // Still add to UI for debugging
+                        addErrorCardToUI(tag, "NO_ID_FOUND", totalTime)
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Card read timeout after 2 seconds")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Card read timeout (>2s)", Toast.LENGTH_LONG).show()
+                    addErrorCardToUI(tag, "TIMEOUT", 2000)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing card: ${e.message}")
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
+                    addErrorCardToUI(tag, "ERROR: ${e.message}", 0)
                 }
             }
         }
     }
 
 
-
-    private fun performCardVerification(cardData: CardDataReader.CardData, tag: Tag) {
-        lifecycleScope.launch {
-            try {
-                //   Verify card against database
-                val verificationResult = cardRepository.verifyScannedCard(
+    private suspend fun performCardVerification(
+        cardData: OptimizedCardDataReader.CardData,
+        tag: Tag,
+        readTimeMs: Long
+    ) {
+        try {
+            // Verify card against database (background thread)
+            val verificationResult = withContext(Dispatchers.IO) {
+                cardRepository.verifyScannedCard(
                     scannedCardId = cardData.cardId!!,
                     holderName = cardData.holderName,
                     additionalData = cardData.additionalInfo
                 )
-
-                Log.d(TAG, "Verification result: ${verificationResult.message}")
-
-                // Create CardInfo for UI display
-                val cardInfo = CardInfo(
-                    id = cardData.cardId,
-                    timestamp = System.currentTimeMillis(),
-                    additionalInfo = buildCardInfoString(cardData, verificationResult),
-                    techList = tag.techList.toList(),
-                    verificationStatus = if (verificationResult.isSuccess) "VERIFIED" else "NOT_FOUND",
-                    batchName = verificationResult.batchCard?.batchName
-                )
-
-                // Add to UI
-                CardReaderViewModel.instance.addCard(cardInfo)
-
-                // Show verification result
-                showVerificationResult(verificationResult)
-
-                // Show statistics
-                showVerificationStats()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during verification: ${e.message}")
-                Toast.makeText(this@MainActivity, "Verification error: ${e.message}", Toast.LENGTH_LONG).show()
-
             }
+
+            Log.d(TAG, "Verification result: ${verificationResult.message}")
+
+            // Create CardInfo for UI display
+            val cardInfo = CardInfo(
+                id = cardData.cardId!!,
+                timestamp = System.currentTimeMillis(),
+                additionalInfo = buildCardInfoString(cardData, verificationResult, readTimeMs),
+                techList = tag.techList.toList(),
+                verificationStatus = if (verificationResult.isSuccess) "VERIFIED" else "NOT_FOUND",
+                batchName = verificationResult.batchCard?.batchName,
+                isVerified = verificationResult.isSuccess
+            )
+
+            // Add to UI
+            CardReaderViewModel.instance.addCard(cardInfo)
+
+            // Show verification result
+            showVerificationResult(verificationResult)
+
+            // Show statistics
+            showVerificationStats()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during verification: ${e.message}")
+            Toast.makeText(this@MainActivity, "Verification error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-
+    private fun addErrorCardToUI(tag: Tag, error: String, readTimeMs: Long) {
+        val cardInfo = CardInfo(
+            id = "ERROR_${System.currentTimeMillis()}",
+            timestamp = System.currentTimeMillis(),
+            additionalInfo = "❌ $error\nRead time: ${readTimeMs}ms\nTech: ${tag.techList.joinToString(", ")}",
+            techList = tag.techList.toList(),
+            verificationStatus = "ERROR",
+            isVerified = false
+        )
+        CardReaderViewModel.instance.addCard(cardInfo)
+    }
 
     private fun buildCardInfoString(
-        cardData: CardDataReader.CardData,
-        verificationResult: CardRepository.VerificationResult
+        cardData: OptimizedCardDataReader.CardData,
+        verificationResult: CardRepository.VerificationResult,
+        readTimeMs: Long
     ): String {
         return buildString {
+//            // Performance info first
+//            appendLine("⚡ Read time: ${readTimeMs}ms")
+
             // Verification status
-            appendLine("🔍 Status: ${if (verificationResult.isSuccess) "✅ VERIFIED" else "❌ NOT FOUND"}")
+            appendLine("Status: ${if (verificationResult.isSuccess) "✅ VERIFIED" else "❌ NOT FOUND"}")
 
             if (verificationResult.batchCard != null) {
-                appendLine("📦 Batch: ${verificationResult.batchCard.batchName}")
+                appendLine("Batch: ${verificationResult.batchCard.batchName}")
                 verificationResult.batchCard.cardOwner?.let {
-                    appendLine("👤 Expected: $it")
+                    appendLine(" Found")
                 }
             } else {
-                appendLine("Batch: Not found in any batch")
+                appendLine("Batch: Not found in Batch 001")
             }
 
             // Card data
-//            cardData.holderName?.let { appendLine("👤 Scanned: $it") }
-//            cardData.expirationDate?.let { appendLine("📅 Expires: $it") }
+//            cardData.holderName?.let { appendLine("👤 Name: $it") }
 //            cardData.applicationLabel?.let { appendLine("🏷️ App: $it") }
+//            cardData.expirationDate?.let { appendLine("📅 Expires: $it") }
+
+            // Performance data
+//            if (cardData.additionalInfo.isNotEmpty()) {
+//                val importantInfo = cardData.additionalInfo.entries
+//                    .filter { !it.value.contains("tag_") } // Skip technical tags
+//                    .take(2) // Show only 2 most important
+//
+//                if (importantInfo.isNotEmpty()) {
+//                    appendLine("📋 ${importantInfo.joinToString(", ") { "${it.key}: ${it.value}" }}")
+//                }
+//            }
 
         }.trim()
     }
@@ -243,8 +309,7 @@ class MainActivity : ComponentActivity() {
         val message = if (result.isSuccess) {
             if (result.batchCard != null) {
                 "${result.message}\n" +
-                        "👤 Expected: ${result.batchCard.cardOwner}\n" +
-                        "📦 Batch: ${result.batchCard.batchName}"
+                        "Batch: ${result.batchCard.batchName}"
             } else {
                 result.message
             }
