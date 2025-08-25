@@ -11,9 +11,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BatchCardDao {
     @Query("SELECT * FROM batch_cards WHERE batch_name = :batchName ORDER BY created_at ASC")
-    fun getCardsByBatch(batchName: String): Flow<List<BatchCard>>
+    suspend fun getCardsByBatch(batchName: String): List<BatchCard>
 
-    @Query("SELECT * FROM batch_cards WHERE card_id = :cardId")
+//    @Query("SELECT * FROM batch_cards WHERE card_id = :cardId")
+//    suspend fun getCardById(cardId: String): BatchCard?
+
+    // Add to BatchCardDao.kt
+    @Query("SELECT * FROM batch_cards WHERE card_id = :cardId LIMIT 1")
     suspend fun getCardById(cardId: String): BatchCard?
 
     @Query("SELECT * FROM batch_cards WHERE card_id = :cardId AND batch_name = :batchName")
@@ -39,4 +43,6 @@ interface BatchCardDao {
 
     @Query("SELECT COUNT(*) FROM batch_cards WHERE batch_name = :batchName")
     suspend fun getCardCountInBatch(batchName: String): Int
+
+
 }

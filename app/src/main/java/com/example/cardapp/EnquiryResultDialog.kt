@@ -112,17 +112,6 @@ fun EnquiryResultDialog(
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Checked Batches:",
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "• Batch 001\n• Batch 002\n• Batch 003",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
                 }
             }
         },

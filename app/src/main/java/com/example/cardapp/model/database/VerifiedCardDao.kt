@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import com.example.cardapp.model.BatchCard
 import com.example.cardapp.model.VerifiedCard
 import kotlinx.coroutines.flow.Flow
 
@@ -31,9 +32,19 @@ interface VerifiedCardDao {
     @Query("DELETE FROM verified_cards WHERE batch_name = :batchName")
     suspend fun deleteVerifiedCardsByBatch(batchName: String)
 
+    @Query("DELETE FROM verified_cards")
+    suspend fun deleteAllVerifiedCards()
+
     @Query("SELECT COUNT(*) FROM verified_cards WHERE batch_name = :batchName")
     suspend fun getVerifiedCountInBatch(batchName: String): Int
 
     @Query("SELECT COUNT(DISTINCT card_id) FROM verified_cards WHERE batch_name = :batchName")
     suspend fun getUniqueVerifiedCountInBatch(batchName: String): Int
+
+
+    @Query("DELETE FROM batch_cards WHERE batch_name = :batchName")
+    suspend fun deleteCardsByBatch(batchName: String)
+
+    @Query("SELECT * FROM batch_cards WHERE batch_name = :batchName")
+    suspend fun getCardsByBatchSync(batchName: String): List<BatchCard>
 }

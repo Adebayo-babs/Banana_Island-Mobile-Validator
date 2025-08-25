@@ -110,7 +110,7 @@ fun CardInfoItem(
 }
 
 @Composable
-fun EmptyStateCard() {
+fun EmptyStateCard(selectedBatch: String = "") {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -133,11 +133,6 @@ fun EmptyStateCard() {
                     text = "No cards scanned yet",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text ="Tap a card to verify it against your batches",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
         }
