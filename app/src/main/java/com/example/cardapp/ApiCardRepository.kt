@@ -2,6 +2,8 @@ package com.example.cardapp
 
 import android.annotation.SuppressLint
 import android.util.Log
+import com.example.cardapp.model.SubmitScannedCardsRequest
+import com.example.cardapp.model.SubmitScannedCardsResponse
 
 class ApiCardRepository {
 
@@ -291,6 +293,50 @@ class ApiCardRepository {
                 cardExists = false,
                 message = "API Error: ${e.message}"
             )
+        }
+    }
+
+
+
+
+
+
+
+    suspend fun submitScannedCards(request: SubmitScannedCardsRequest): SubmitScannedCardsResponse {
+        return try {
+            // SIMPLE LOGGING - What we're sending
+            Log.d(TAG, "Batch Number: ${request.batchNumber}")
+            Log.d(TAG, "Session Start: ${request.sessionStartTime}")
+            Log.d(TAG, "Session End: ${request.sessionEndTime}")
+            Log.d(TAG, "Device ID: ${request.deviceId}")
+            Log.d(TAG, "Location: ${request.location}")
+            Log.d(TAG, "Operator ID: ${request.operatorId}")
+            Log.d(TAG, "Number of cards: ${request.scannedCards.size}")
+            Log.d(TAG, "Notes: ${request.notes}")
+
+            // Log each card
+            request.scannedCards.forEachIndexed { i, card ->
+                Log.d(TAG, "Card $i: ID=${card.cardId}")
+            }
+
+            // Convert to JSON and log it
+            val gson = com.google.gson.Gson()
+            val jsonString = gson.toJson(request)
+            Log.d(TAG, "JSON being sent: $jsonString")
+
+            val response = api.submitScannedCards(request)
+
+            Log.d(TAG, "API submission successful: $response")
+
+            if (response.isSuccessful) {
+                response.body() ?: throw Exception("Empty response body")
+            } else {
+                throw Exception("API error: ${response.code()} - ${response.errorBody()?.string()}")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error submitting cards to API: ${e.message}")
+            throw e
         }
     }
 

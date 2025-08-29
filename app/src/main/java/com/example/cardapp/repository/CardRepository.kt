@@ -3,6 +3,8 @@ package com.example.cardapp.repository
 import android.util.Log
 import com.example.cardapp.ApiCardRepository
 import com.example.cardapp.model.BatchCard
+import com.example.cardapp.model.SubmitScannedCardsRequest
+import com.example.cardapp.model.SubmitScannedCardsResponse
 import com.example.cardapp.model.VerifiedCard
 import com.example.cardapp.model.database.BatchCardDao
 import com.example.cardapp.model.database.VerifiedCardDao
@@ -352,4 +354,33 @@ class CardRepository(
         val remainingCards: Int get() = totalCards - verifiedCards
         val completionPercentage: Double get() = if (totalCards > 0) (verifiedCards.toDouble() / totalCards) * 100 else 0.0
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    suspend fun submitScannedCards(request: SubmitScannedCardsRequest): SubmitScannedCardsResponse {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Submitting ${request.scannedCards.size} cards to API...")
+                apiRepository.submitScannedCards(request)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error submitting cards: ${e.message}")
+                SubmitScannedCardsResponse(
+                    status = "error",
+                    statusCode = 500,
+                    message = "Submission failed: ${e.message}"
+                )
+            }
+        }
+    }
+
 }

@@ -7,12 +7,14 @@ import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.IsoDep
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
     // Track active reading job to prevent overlapping reads
     private var readingJob: Job? = null
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -95,7 +98,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupDatabase() {
-
 
         // Initialize database and repository
         val database = CardDatabase.getDatabase(this)
@@ -144,6 +146,15 @@ class MainActivity : ComponentActivity() {
                 // Show error to user
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Failed to connect to API: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+
+            lifecycleScope.launch {
+                CardReaderViewModel.instance.selectedBatch.collect { batchName ->
+                    if (batchName.isNotEmpty()) {
+                        val batchNumber = batchName.replace("Batch ", "").trim().toInt()
+                        CardReaderViewModel.instance.startSession(batchNumber)
+                    }
                 }
             }
         }
@@ -255,7 +266,7 @@ class MainActivity : ComponentActivity() {
         targetBatch: String
     ) {
         try {
-            Log.d(TAG, "========== FAST VERIFICATION STARTING ==========")
+            Log.d(TAG, "VERIFICATION STARTING")
             Log.d(TAG, "Card ID: ${cardData.cardId}")
             Log.d(TAG, "Target Batch: $targetBatch")
 

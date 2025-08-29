@@ -1,15 +1,21 @@
 package com.example.cardapp.viewmodel
 
+import android.content.ContentValues.TAG
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cardapp.model.CardInfo
+import com.example.cardapp.model.ScanningSession
+import com.example.cardapp.model.SubmitScannedCardsResponse
 import com.example.cardapp.repository.CardRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class CardReaderViewModel : ViewModel() {
 
@@ -57,6 +63,10 @@ class CardReaderViewModel : ViewModel() {
     private val _dialogState = MutableStateFlow(DialogState())
     val dialogState: StateFlow<DialogState> = _dialogState.asStateFlow()
 
+
+    private val _currentSession = MutableStateFlow<ScanningSession?>(null)
+    val currentSession = _currentSession.asStateFlow()
+
     init {
         // Load available batches at startup
         viewModelScope.launch {
@@ -74,6 +84,27 @@ class CardReaderViewModel : ViewModel() {
 
         // Load initial batch stats
         updateBatchStats()
+    }
+
+    fun endCurrentSession() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "========== ENDING CURRENT SESSION ==========")
+                Log.d(TAG, "Current session ID: ${_currentSession.value?.sessionId}")
+                Log.d(TAG, "Total cards in session: ${_currentSession.value?.scannedCards?.size ?: 0}")
+
+                // Clear the current session
+                _currentSession.value = null
+
+                // Clear scanned cards list
+                _cards.value = emptyList()
+
+                Log.d(TAG, "✅ Session ended successfully - ready for new session")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error ending session: ${e.message}")
+            }
+        }
     }
 
     // Set selected batch
@@ -155,18 +186,7 @@ class CardReaderViewModel : ViewModel() {
     }
 
 
-    fun addCard(cardInfo: CardInfo) {
-        // Add to mutable list (for backward compatibility)
-        cardList.add(0, cardInfo)  //Add to beginning for newest first
 
-        //Update StateFlow
-        _cards.value = cardList.toList()
-
-        // Update batch stats if this card was verified
-        if (cardInfo.isVerified) {
-            updateBatchStats()
-        }
-    }
 
     fun clearCards() {
         cardList.clear()
@@ -190,4 +210,88 @@ class CardReaderViewModel : ViewModel() {
     suspend fun getCurrentBatchStats(): CardRepository.VerificationStats? {
         return repository?.getVerificationStats(_selectedBatch.value)
     }
+
+
+
+
+
+
+
+    fun startSession(batchNumber: Int) {
+        val currentTime = Instant.now().atOffset(ZoneOffset.UTC)
+            .format(DateTimeFormatter.ISO_INSTANT)
+
+        val session = ScanningSession(
+            batchNumber = batchNumber,
+            startTime = currentTime
+        )
+        _currentSession.value = session
+        Log.d(TAG, "Started new scanning session: ${session.sessionId}")
+    }
+
+    fun addCard(cardInfo: CardInfo) {
+        val currentCards = _cards.value.toMutableList()
+        currentCards.add(cardInfo)
+        _cards.value = currentCards
+
+        // Add to current session if it exists and card is verified
+        _currentSession.value?.let { session ->
+            if (cardInfo.isVerified) {
+                val scanTime = Instant.ofEpochMilli(cardInfo.timestamp)
+                    .atOffset(ZoneOffset.UTC)
+                    .format(DateTimeFormatter.ISO_INSTANT)
+
+                session.addScannedCard(cardInfo.id, scanTime)
+                Log.d(TAG, "Added card to session: ${cardInfo.id}")
+            }
+        }
+    }
+
+    suspend fun submitCurrentSession(notes: String? = null): SubmitScannedCardsResponse? {
+        val session = _currentSession.value ?: return null
+
+        return try {
+            val endTime = Instant.now().atOffset(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ISO_INSTANT)
+
+            val request = session.createSubmissionRequest(endTime, notes)
+
+            Log.d(TAG, "Submitting session with ${request.scannedCards.size} cards")
+
+            val response = repository?.submitScannedCards(request)
+
+            if (response?.status == "success") {
+                // Clear session after successful submission
+                _currentSession.value = null
+                Log.d(TAG, "Session submitted successfully")
+            }
+
+            response
+        } catch (e: Exception) {
+            Log.e(TAG, "Error submitting session: ${e.message}")
+            null
+        }
+    }
+
+    // Add method to get current session stats
+    fun getCurrentSessionStats(): SessionStats {
+        val session = _currentSession.value
+        val verifiedCards = _cards.value.count { it.isVerified }
+
+        return SessionStats(
+            sessionId = session?.sessionId ?: "",
+            totalScanned = verifiedCards,
+            sessionActive = session != null,
+            startTime = session?.startTime ?: ""
+        )
+    }
+
+    data class SessionStats(
+        val sessionId: String,
+        val totalScanned: Int,
+        val sessionActive: Boolean,
+        val startTime: String
+    )
+
+
 }

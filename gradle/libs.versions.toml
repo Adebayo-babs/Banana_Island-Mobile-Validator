@@ -1,5 +1,6 @@
 [versions]
 agp = "8.7.3"
+desugar_jdk_libs = "2.1.5"
 firebaseBom = "34.1.0"
 firebaseDatabaseKtxVersion = "21.0.0"
 kotlin = "2.0.0"
@@ -17,6 +18,7 @@ uiDesktop = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-database-ktx-v2100 = { module = "com.google.firebase:firebase-database-ktx", version.ref = "firebaseDatabaseKtxVersion" }
 google-firebase-database-ktx = { module = "com.google.firebase:firebase-database-ktx" }

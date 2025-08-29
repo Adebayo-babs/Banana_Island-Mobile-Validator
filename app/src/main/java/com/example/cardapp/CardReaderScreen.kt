@@ -2,6 +2,8 @@ package com.example.cardapp
 
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Column
@@ -19,10 +21,6 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -47,13 +45,14 @@ import androidx.compose.ui.unit.sp
 import com.example.cardapp.model.CardInfo
 import com.example.cardapp.model.CardInfoItem
 import com.example.cardapp.model.EmptyStateCard
+import com.example.cardapp.model.SessionSubmissionSection
 import com.example.cardapp.repository.CardRepository
 import com.example.cardapp.viewmodel.CardReaderViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 
+@RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("DefaultLocale")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardReaderScreen(
     viewModel: CardReaderViewModel = viewModel { CardReaderViewModel.instance }
@@ -132,7 +131,7 @@ fun CardReaderScreen(
                 OutlinedTextField(
                     value = batchNumberInput,
                     onValueChange = validateAndSetBatch,
-                    label = { Text("Batch Number (1-50)") },
+                    label = { Text("Batch Number") },
                     placeholder = { Text("Enter batch number...") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = !isValidBatchNumber,
@@ -262,6 +261,12 @@ fun CardReaderScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            SessionSubmissionSection(
+                viewModel = viewModel,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
 
             Spacer(modifier = Modifier.height(8.dp))

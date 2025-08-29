@@ -1,5 +1,8 @@
 package com.example.cardapp
 
+import com.example.cardapp.model.SubmitScannedCardsRequest
+import com.example.cardapp.model.SubmitScannedCardsResponse
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -106,12 +109,12 @@ data class SubmitCorrectionResponse(
     val correctionId: String? = null
 )
 
-data class SubmitScannedCardsRequest(
-    val sessionId: String? = null,
-    val batchNumber: String,
-    val scannedCards: List<ScannedCardData>,
-    val scannerInfo: ScannerInfo? = null
-)
+//data class SubmitScannedCardsRequest(
+//    val sessionId: String? = null,
+//    val batchNumber: String,
+//    val scannedCards: List<ScannedCardData>,
+//    val scannerInfo: ScannerInfo? = null
+//)
 
 data class ScannedCardData(
     val cardId: String,
@@ -162,6 +165,12 @@ data class FetchBatchRequest(
     val batchNumber: Int
 )
 
+data class ApiResponse(
+    val status: String,
+    val message: String,
+    val data: Any? = null
+)
+
 
 
 
@@ -202,7 +211,7 @@ interface CardBatchApi {
 
     // Submit scanned cards batch
     @POST("/api/v1/card-batch-scanning/submit-scanned-cards")
-    suspend fun submitScannedCards(@Body request: SubmitScannedCardsRequest): Map<String, Any>
+    suspend fun submitScannedCards(@Body request: SubmitScannedCardsRequest): Response<SubmitScannedCardsResponse>
 
     // Get scan session details
     @GET("/api/v1/card-batch-scanning/sessions/{sessionId}")
