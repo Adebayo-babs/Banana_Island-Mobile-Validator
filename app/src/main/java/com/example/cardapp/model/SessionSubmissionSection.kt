@@ -60,74 +60,75 @@ fun SessionSubmissionSection(
             ) {
                 Text(
                     text = "Current Session",
-                    fontSize = 16.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 2.dp)
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Session ID",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = sessionStatsData.sessionId.take(8) + "...",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.SpaceBetween
+//                ) {
+//                    Column {
+//                        Text(
+//                            text = "Session ID",
+//                            fontSize = 12.sp,
+//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//                        )
+//                        Text(
+////                            .take(5) + "..."
+//                            text = sessionStatsData.sessionId,
+//                            fontSize = 18.sp,
+//                            fontWeight = FontWeight.Medium
+//                        )
+//                    }
 
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "Verified Cards",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = "${sessionStatsData.totalScanned}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
+//                    Column(horizontalAlignment = Alignment.End) {
+//                        Text(
+//                            text = "Verified Cards: ${sessionStatsData.totalScanned}",
+//                            fontSize = 12.sp,
+//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//                        )
+//                        Text(
+//                            text = "${sessionStatsData.totalScanned}",
+//                            fontSize = 14.sp,
+//                            fontWeight = FontWeight.Medium,
+//                            color = MaterialTheme.colorScheme.secondary
+//                        )
+//                    }
+//                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            // End session without submitting
-                            coroutineScope.launch {
-                                try {
-                                    // Clear UI state immediately
-                                    showSubmissionDialog = false
-                                    submissionNotes = ""
-                                    isSubmitting = false
-                                    submissionResult = null
-
-                                    // End the session in ViewModel
-                                    viewModel.endCurrentSession()
-                                    // Clear scanned cards too
-                                    viewModel.clearCards()
-                                }catch (e: Exception) {
-                                    Log.e("SessionSubmission", "Error ending session: ${e.message}")
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("End Session")
-                    }
+//                    OutlinedButton(
+//                        onClick = {
+//                            // End session without submitting
+//                            coroutineScope.launch {
+//                                try {
+//                                    // Clear UI state immediately
+//                                    showSubmissionDialog = false
+//                                    submissionNotes = ""
+//                                    isSubmitting = false
+//                                    submissionResult = null
+//
+//                                    // End the session in ViewModel
+//                                    viewModel.endCurrentSession()
+//                                    // Clear scanned cards too
+//                                    viewModel.clearCards()
+//                                }catch (e: Exception) {
+//                                    Log.e("SessionSubmission", "Error ending session: ${e.message}")
+//                                }
+//                            }
+//                        },
+//                        modifier = Modifier.weight(1f)
+//                    ) {
+//                        Text("End Session")
+//                    }
 
                     Button(
                         onClick = { showSubmissionDialog = true },
@@ -137,7 +138,7 @@ fun SessionSubmissionSection(
                         if (isSubmitting) {
                             Text("Submitting...")
                         } else {
-                            Text("Submit to API")
+                            Text("Submit Batch")
                         }
                     }
                 }
@@ -168,13 +169,13 @@ fun SessionSubmissionSection(
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                             )
-                            result.data?.let { data ->
-                                Text(
-                                    text = "Submitted: ${data.submittedCount}, Duplicates: ${data.duplicateCount}, Errors: ${data.errorCount}",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                            }
+//                            result.data?.let { data ->
+//                                Text(
+//                                    text = "Submitted: ${data.submittedCount}, Duplicates: ${data.duplicateCount}, Errors: ${data.errorCount}",
+//                                    fontSize = 11.sp,
+//                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//                                )
+//                            }
                         }
                     }
                 }

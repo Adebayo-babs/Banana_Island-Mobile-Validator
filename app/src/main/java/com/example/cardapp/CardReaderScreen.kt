@@ -120,7 +120,7 @@ fun CardReaderScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "Enter Target Batch Number",
+                    text = "Enter Batch Number",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -138,7 +138,7 @@ fun CardReaderScreen(
                     supportingText = {
                         if (!isValidBatchNumber) {
                             Text(
-                                text = "Please enter a valid batch number (1-50)",
+                                text = "Please enter a valid batch number (1-49)",
                                 color = MaterialTheme.colorScheme.error,
                                 fontSize = 12.sp
                             )
@@ -164,16 +164,16 @@ fun CardReaderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Cards Scanned",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = "Verified: ${batchStats.verifiedCards}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+//                        Text(
+//                            text = "Cards Scanned",
+//                            fontSize = 14.sp,
+//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+//                        )
+//                        Text(
+//                            text = "Verified: ${batchStats.verifiedCards}",
+//                            fontSize = 14.sp,
+//                            color = MaterialTheme.colorScheme.primary
+//                        )
                     }
 
                     if (batchStats.totalCards > 0) {
@@ -211,19 +211,24 @@ fun CardReaderScreen(
                     // Instructions
                     if (selectedBatch.isNotEmpty() && isValidBatchNumber) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-                            )
-                        ) {
-                            Text(
-                                text = "📱 Ready to scan cards for $selectedBatch\n" +
-                                        "Tap your NFC cards to verify them against this batch.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
+//                        Card(
+//                            colors = CardDefaults.cardColors(
+//                                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+//                            )
+//                        ) {
+////                            Text(
+////                                text = "No cards scanned yet",
+////                                style = MaterialTheme.typography.titleMedium,
+////                                color = MaterialTheme.colorScheme.onSurfaceVariant
+////                            )
+//                            Text(
+//                                text = "📱 Ready to scan cards for $selectedBatch\n" +
+//                                        "Tap your NFC cards to verify them against this batch.",
+//                                fontSize = 15.sp,
+//                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+//                                modifier = Modifier.padding(12.dp)
+//                            )
+//                        }
                     }
                 }
             }
@@ -257,19 +262,19 @@ fun CardReaderScreen(
                     OutlinedButton(
                         onClick = { viewModel.clearCards() }
                     ) {
-                        Text("Clear All")
+                        Text("Clear")
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             SessionSubmissionSection(
                 viewModel = viewModel,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
 
-            Spacer(modifier = Modifier.height(8.dp))
+//            Spacer(modifier = Modifier.height(8.dp))
 
             // Cards list
             if (cards.isEmpty()) {

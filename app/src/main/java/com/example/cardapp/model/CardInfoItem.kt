@@ -129,11 +129,7 @@ fun EmptyStateCard(selectedBatch: String = "") {
                     fontSize = 48.sp
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "No cards scanned yet",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
             }
         }
     }
