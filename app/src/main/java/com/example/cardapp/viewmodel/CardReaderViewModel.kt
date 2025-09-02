@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cardapp.model.CardInfo
 import com.example.cardapp.model.ScanningSession
 import com.example.cardapp.model.SubmitScannedCardsResponse
@@ -29,11 +30,9 @@ class CardReaderViewModel : ViewModel() {
 
     data class BatchStats(
         val totalCards: Int = 0,
-        val verifiedCards: Int = 0
-    ) {
-        val completionPercentage: Float
-            get() = if (totalCards == 0) 0f else (verifiedCards.toFloat() / totalCards * 100f)
-    }
+        val verifiedCards: Int = 0,
+        val completionPercentage: Double = if (totalCards > 0) (verifiedCards.toDouble()/totalCards) * 100 else 0.0
+    )
 
 
     companion object {
@@ -53,8 +52,8 @@ class CardReaderViewModel : ViewModel() {
     val selectedBatch: StateFlow<String> = _selectedBatch.asStateFlow()
 
     // Batch Statistics
-    private val _batchStats = MutableStateFlow(CardRepository.VerificationStats(0, 0, 0))
-    val batchStats: StateFlow<CardRepository.VerificationStats> = _batchStats.asStateFlow()
+    private val _batchStats = MutableStateFlow(BatchStats(0,0))
+    val batchStats: StateFlow<BatchStats> = _batchStats.asStateFlow()
 
     // State for card IDs in a batch
     private val _batchCardIds = MutableStateFlow<List<String>>(emptyList())
@@ -83,7 +82,19 @@ class CardReaderViewModel : ViewModel() {
         this.repository = cardRepository
 
         // Load initial batch stats
-        updateBatchStats()
+//        updateBatchStats()
+    }
+
+    fun getRepository(): CardRepository? = repository
+
+    // Load specific batch when search button is clicked
+    suspend fun loadSpecificBatch(batchName: String): Boolean {
+        return try {
+            repository?.loadSpecificBatch(batchName) ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading batch: ${e.message}")
+            false
+        }
     }
 
     fun endCurrentSession() {
@@ -110,9 +121,9 @@ class CardReaderViewModel : ViewModel() {
     // Set selected batch
     fun setSelectedBatch(batch: String) {
         _selectedBatch.value = batch
-        viewModelScope.launch {
-            updateBatchStats()
-        }
+//        viewModelScope.launch {
+//            updateBatchStats()
+//        }
     }
 
     fun showNotFoundDialog(title: String, message: String) {
@@ -149,30 +160,33 @@ class CardReaderViewModel : ViewModel() {
 //        }
 //    }
 
-    private fun updateBatchStats() {
-        viewModelScope.launch {
-            try {
-                val stats = repository?.getVerificationStats(_selectedBatch.value)
-                if (stats != null) {
-                    _batchStats.value = stats
-                }
-            } catch (e: Exception) {
-                Log.e("CardReaderVM", "Failed to update stats: ${e.message}")
-            }
-        }
-    }
+//    private fun updateBatchStats() {
+//        viewModelScope.launch {
+//            try {
+//                val stats = repository?.getVerificationStats(_selectedBatch.value)
+//                if (stats != null) {
+//                    _batchStats.value = stats
+//                }
+//            } catch (e: Exception) {
+//                Log.e("CardReaderVM", "Failed to update stats: ${e.message}")
+//            }
+//        }
+//    }
 
 
     fun resetCurrentBatch() {
         viewModelScope.launch {
             try {
-                repository?.resetBatchVerification(_selectedBatch.value)
-                //Refresh stats after reset
-                updateBatchStats()
-                // Clear local UI cards
+                // Clear local state
                 _cards.value = emptyList()
-            }catch (e: Exception) {
-                Log.e("CardReaderViewModel", "Error resetting batch: ${e.message}")
+                _batchStats.value = BatchStats(0, 0)
+
+                // Clear repository cache
+                repository?.clearCurrentBatch()
+
+                Log.d(TAG, "Current batch reset")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resetting batch: ${e.message}")
             }
         }
     }
@@ -194,8 +208,62 @@ class CardReaderViewModel : ViewModel() {
     }
 
     fun removeCard(cardInfo: CardInfo) {
-        cardList.remove(cardInfo)
-        _cards.value = cardList.toList()
+        viewModelScope.launch {
+            try {
+                val currentCards = _cards.value.toMutableList()
+                currentCards.remove(cardInfo)
+                _cards.value = currentCards
+
+                Log.d(TAG, "Removed card: ${cardInfo.id}")
+
+                updateBatchStatsIfNeeded()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error removing card: ${e.message}")
+            }
+        }
+    }
+
+    // NEW: Method to clear everything after successful submission
+    fun clearSessionAfterSubmission() {
+        viewModelScope.launch {
+            try {
+                // Clear cards list
+                _cards.value = emptyList()
+
+                // Clear selected batch
+                _selectedBatch.value = ""
+
+                // Reset batch stats
+                _batchStats.value = BatchStats(0, 0)
+
+                // Clear any cached batch data
+                repository?.clearCurrentBatch()
+
+                Log.d(TAG, "Session cleared after successful submission")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error clearing session: ${e.message}")
+            }
+        }
+    }
+
+    // UPDATED: Get stats from current loaded batch
+    private suspend fun updateBatchStatsIfNeeded() {
+        val currentBatch = _selectedBatch.value
+        if (currentBatch.isNotEmpty()) {
+            repository?.let { repo ->
+                try {
+                    val stats = repo.getCurrentBatchStats(currentBatch)
+                    _batchStats.value = BatchStats(
+                        totalCards = stats.totalCards,
+                        verifiedCards = stats.verifiedCards,
+                        completionPercentage = stats.completionPercentage
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating batch stats: ${e.message}")
+                }
+            }
+        }
     }
 
     // Perform enquiry for specific card
@@ -203,6 +271,7 @@ class CardReaderViewModel : ViewModel() {
         return try {
             repository?.enquireScannedCard(cardId)
         } catch (e: Exception) {
+            Log.e(TAG, "Error performing enquiry: ${e.message}")
             null
         }
     }
@@ -272,6 +341,7 @@ class CardReaderViewModel : ViewModel() {
             null
         }
     }
+
 
     // Add method to get current session stats
     fun getCurrentSessionStats(): SessionStats {

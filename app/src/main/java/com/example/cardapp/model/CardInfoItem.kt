@@ -9,10 +9,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -32,79 +38,102 @@ fun CardInfoItem(
     onRemove: () -> Unit,
     onEnquiry: (CardInfo) -> Unit
 ) {
-    val isNotFound = cardInfo.verificationStatus == "NOT_FOUND"
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = when (cardInfo.verificationStatus) {
-                "VERIFIED" -> MaterialTheme.colorScheme.primaryContainer
-                else -> MaterialTheme.colorScheme.errorContainer
+                "VERIFIED" -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                "NOT_FOUND" -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                "ERROR" -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.surfaceVariant
             }
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
+            // Header row with card ID and actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = cardInfo.id,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = when (cardInfo.verificationStatus) {
-                            "VERIFIED" -> MaterialTheme.colorScheme.onPrimaryContainer
-                            else -> MaterialTheme.colorScheme.onErrorContainer
-                        }
-                    )
-                    Text(
-                        text = dateFormatter.format(cardInfo.timestamp),
-                        fontSize = 12.sp,
-                        color = when (cardInfo.verificationStatus) {
-                            "VERIFIED" -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            else -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-                        }
-                    )
-                }
+                Text(
+                    text = cardInfo.id,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = when (cardInfo.verificationStatus) {
+                        "VERIFIED" -> MaterialTheme.colorScheme.primary
+                        "NOT_FOUND", "ERROR" -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                )
 
-                OutlinedButton(
-                    onClick = onRemove
-                ) {
-                    Text("×", fontSize = 16.sp)
+                Row {
+                    // Individual remove button (X)
+                    IconButton(
+                        onClick = onRemove, // Now removes only this card
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Remove this card",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    // Enquiry button
+//                    if (cardInfo.verificationStatus != "ERROR") {
+//                        IconButton(
+//                            onClick = { onEnquiry(cardInfo) },
+//                            modifier = Modifier.size(24.dp)
+//                        ) {
+//                            Icon(
+//                                Icons.Filled.Search,
+//                                contentDescription = "Enquire about this card",
+//                                tint = MaterialTheme.colorScheme.secondary,
+//                                modifier = Modifier.size(16.dp)
+//                            )
+//                        }
+//                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Status and timestamp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                when (cardInfo.verificationStatus) {
+                    "VERIFIED" -> "✅ Verified"
+                    "NOT_FOUND" -> "❌ Not Found"
+                    "ERROR" -> "⚠️ Error"
+                    else -> cardInfo.verificationStatus
+                }?.let {
+                    Text(
+                        text = it,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+
+                Text(
+                    text = dateFormatter.format(cardInfo.timestamp),
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
 
             // Additional info
-            Text(
-                text = cardInfo.additionalInfo,
-                fontSize = 14.sp,
-                color = when (cardInfo.verificationStatus) {
-                    "VERIFIED" -> MaterialTheme.colorScheme.onPrimaryContainer
-                    else -> MaterialTheme.colorScheme.onErrorContainer
-                }
-            )
-
-            // Show Enquiry button only for NOT_FOUND cards
-            if (isNotFound) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { onEnquiry(cardInfo) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
-                    )
-                ) {
-                    Text("🔍 Enquiry")
-                }
+            if (cardInfo.additionalInfo.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = cardInfo.additionalInfo,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
             }
-
         }
     }
 }

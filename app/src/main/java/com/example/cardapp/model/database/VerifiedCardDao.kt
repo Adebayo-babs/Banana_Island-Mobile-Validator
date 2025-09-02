@@ -26,8 +26,8 @@ interface VerifiedCardDao {
     @Insert
     suspend fun insertVerifiedCard(verifiedCard: VerifiedCard): Long
 
-    @Delete
-    suspend fun deleteVerifiedCard(verifiedCard: VerifiedCard)
+    @Query("DELETE FROM verified_cards WHERE card_id = :cardId")
+    suspend fun deleteVerifiedCard(cardId: String)
 
     @Query("DELETE FROM verified_cards WHERE batch_name = :batchName")
     suspend fun deleteVerifiedCardsByBatch(batchName: String)

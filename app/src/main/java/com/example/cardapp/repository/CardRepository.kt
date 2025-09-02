@@ -23,6 +23,35 @@ class CardRepository(
     private var currentlyLoadedBatch: String? = null
     private var availableBatches: List<String> = emptyList()
 
+    // Cache for current batch card IDs (Local Verification)
+    private var currentBatchCardIds: List<String> = emptyList()
+
+    // Load specific batch (Called when search button is clicked)
+    suspend fun loadSpecificBatch(batchName: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Loading batch: $batchName")
+                val batchNumber = batchNameToBatchNumber(batchName)
+                val batchData = apiRepository.fetchBatchWithCache(batchNumber)
+
+                if (batchData == null) {
+                    Log.w(TAG, "Failed to load batch data for $batchName")
+                    return@withContext false
+                }
+
+                //Cache the card IDs for fast local verification
+                currentBatchCardIds = batchData.cardIds
+                currentlyLoadedBatch = batchName
+
+                Log.d(TAG, "Batch loaded successfully with ${currentBatchCardIds.size} cards")
+                return@withContext true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading batch $batchName: ${e.message}")
+                return@withContext false
+            }
+        }
+    }
+
     data class CardEnquiryResult(
         val cardExists: Boolean,
         val batchName: String?,
@@ -127,7 +156,7 @@ class CardRepository(
         }
     }
 
-    // FAST: Verify card using API directly
+    // Local verification (No API calls to other batches)
     suspend fun verifyScannedCardAgainstBatch(
         scannedCardId: String,
         targetBatchName: String,
@@ -136,26 +165,29 @@ class CardRepository(
     ): VerificationResult {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "========== FAST CARD VERIFICATION ==========")
+                Log.d(TAG, "LOCAL BATCH VERIFICATION ")
                 Log.d(TAG, "Verifying card ID: '$scannedCardId'")
-                Log.d(TAG, "Against batch: '$targetBatchName'")
+                Log.d(TAG, "Against loaded batch: '$targetBatchName'")
 
-                val batchNumber = batchNameToBatchNumber(targetBatchName)
-                Log.d(TAG, "Batch number: $batchNumber")
+                // Check if the batch has been loaded
+                if (currentlyLoadedBatch != targetBatchName || currentBatchCardIds.isEmpty()) {
+                    return@withContext VerificationResult(
+                        isSuccess = false,
+                        message = "Batch not loaded. Enter the batch number and click the search button"
+                    )
+                }
 
-                // Use API to verify card directly
-                val verificationResult = apiRepository.verifyCardInBatch(scannedCardId, batchNumber)
+                // Check if card exists in current batch (Local check only)
+                val isFound = currentBatchCardIds.any { it.equals(scannedCardId, ignoreCase = true)}
 
-                Log.d(TAG, "API Verification result: ${verificationResult.message}")
+                Log.d(TAG, "Local verification result: $isFound")
 
-                if (verificationResult.isFound) {
-                    Log.d(TAG, "✅ CARD FOUND - Adding verification record")
-
-                    // Create batch card for consistency
+                if (isFound) {
+                    Log.d(TAG, "Card found in current batch")
                     val batchCard = BatchCard(
                         cardId = scannedCardId,
                         batchName = targetBatchName,
-                        description = "Verified card from ${verificationResult.batchName}",
+                        description = "Verified card from $targetBatchName",
                         cardOwner = holderName
                     )
 
@@ -178,28 +210,19 @@ class CardRepository(
 
                     return@withContext VerificationResult(
                         isSuccess = true,
-                        message = verificationResult.message,
+                        message = "Card verified in $targetBatchName",
                         batchCard = batchCard,
                         verifiedCardId = verifiedId
                     )
                 } else {
-                    Log.d(TAG, "❌ CARD NOT FOUND in target batch")
+                    Log.d(TAG, "CARD NOT FOUND in current batch")
 
-                    // Try to find card in other batches for better error message
-                    val cardLocation = apiRepository.findCardInAnyBatch(scannedCardId)
-
-                    val message = if (cardLocation != null) {
-                        "Card found in ${cardLocation.batchName}, not in $targetBatchName"
-                    } else {
-                        "Card not found in $targetBatchName or any other batch"
-                    }
-
+                    // NO API CALL TO OTHER BATCHES - just return not found
                     return@withContext VerificationResult(
                         isSuccess = false,
-                        message = message
+                        message = "Card not found in $targetBatchName"
                     )
                 }
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error during fast verification: ${e.message}")
                 return@withContext VerificationResult(
@@ -209,6 +232,48 @@ class CardRepository(
             }
         }
     }
+
+    suspend fun getCurrentBatchStats(batchName: String): VerificationStats {
+        return withContext(Dispatchers.IO) {
+            try {
+                val totalCards = currentBatchCardIds.size
+                val verifiedCards = getUniqueVerifiedCountInBatch(batchName)
+                val totalScans = getVerifiedCountInBatch(batchName)
+
+                VerificationStats(
+                    totalCards = totalCards,
+                    verifiedCards = verifiedCards,
+                    totalScans = totalScans
+                )
+            }catch (e: Exception) {
+                Log.e(TAG, "Error getting current batch stats: ${e.message}")
+                VerificationStats(0, 0, 0)
+            }
+        }
+    }
+
+    // Clear current batch data
+    suspend fun clearCurrentBatch() {
+        withContext(Dispatchers.IO) {
+            currentlyLoadedBatch = null
+            currentBatchCardIds = emptyList()
+            Log.d(TAG, "Current batch data cleared")
+        }
+    }
+
+    // NEW: Remove specific verified card
+    suspend fun removeVerifiedCard(cardId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                verifiedCardDao.deleteVerifiedCard(cardId)
+                Log.d(TAG, "Removed verified card: $cardId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error removing verified card: ${e.message}")
+            }
+        }
+    }
+
+
 
     // Find card in any batch using API
     suspend fun findCardInAnyBatch(cardId: String): BatchCard? {

@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.IsoDep
@@ -20,8 +22,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.cardapp.model.CardInfo
 import com.example.cardapp.model.database.CardDatabase
 import com.example.cardapp.repository.CardRepository
@@ -53,9 +59,18 @@ class MainActivity : ComponentActivity() {
     // Track active reading job to prevent overlapping reads
     private var readingJob: Job? = null
 
+    private var toneGenerator: ToneGenerator? = null
+    private var showEnquiryScreen by mutableStateOf(false)
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        try {
+            toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 1000)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not initialize tone generator: ${e.message}")
+        }
 
         setupNFC()
         setupDatabase()
@@ -63,11 +78,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CardAppTheme {
+                val navController = rememberNavController()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CardReaderScreen()
+
+                    if (showEnquiryScreen) {
+                        EnquiryScreen(
+                            onBackClick = {
+                                showEnquiryScreen = false
+                            }
+                        )
+                    } else {
+                        CardReaderScreen(
+                            onEnquiryClick = {
+                                showEnquiryScreen = true
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -266,13 +295,13 @@ class MainActivity : ComponentActivity() {
         targetBatch: String
     ) {
         try {
-            Log.d(TAG, "VERIFICATION STARTING")
+            Log.d(TAG, "LOCAL VERIFICATION STARTING")
             Log.d(TAG, "Card ID: ${cardData.cardId}")
             Log.d(TAG, "Target Batch: $targetBatch")
 
             val verificationStartTime = System.currentTimeMillis()
 
-            // Use the optimized verification that calls API directly
+            // Local verification
             val verificationResult = withContext(Dispatchers.IO) {
                 cardRepository.verifyScannedCardAgainstBatch(
                     scannedCardId = cardData.cardId!!,
@@ -283,7 +312,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val verificationTime = System.currentTimeMillis() - verificationStartTime
-            Log.d(TAG, "VERIFICATION COMPLETED in ${verificationTime}ms")
+            Log.d(TAG, "LOCAL VERIFICATION COMPLETED in ${verificationTime}ms")
             Log.d(TAG, "Verification result: ${verificationResult.message}")
 
             if (verificationResult.isSuccess) {
@@ -319,6 +348,9 @@ class MainActivity : ComponentActivity() {
                 Log.d(TAG, "❌ VERIFICATION FAILED!")
                 Log.d(TAG, "Reason: ${verificationResult.message}")
 
+                // Play error sound
+                playErrorSound()
+
                 withContext(Dispatchers.Main) {
                     showNotFoundDialog(
                         cardId = cardData.cardId!!,
@@ -329,12 +361,24 @@ class MainActivity : ComponentActivity() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during fast verification: ${e.message}")
+
+            // Play error sound
+            playErrorSound()
+
             withContext(Dispatchers.Main) {
                 showNotFoundDialog(
                     cardId = cardData.cardId ?: "UNKNOWN",
                     message = "Verification error: ${e.message}"
                 )
             }
+        }
+    }
+
+    private fun playErrorSound() {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 2000)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not play error sound: ${e.message}")
         }
     }
 

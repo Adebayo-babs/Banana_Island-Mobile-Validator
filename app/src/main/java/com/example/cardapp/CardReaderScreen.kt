@@ -3,6 +3,7 @@ package com.example.cardapp
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.items
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,12 +57,14 @@ import java.text.SimpleDateFormat
 @SuppressLint("DefaultLocale")
 @Composable
 fun CardReaderScreen(
+    onEnquiryClick: () -> Unit = {},
     viewModel: CardReaderViewModel = viewModel { CardReaderViewModel.instance }
 ) {
 
     val cards by viewModel.cards.collectAsState()
     val selectedBatch by viewModel.selectedBatch.collectAsState()
     val availableBatches by viewModel.availableBatches.collectAsState()
+    val context = LocalContext.current
 
     // Dialog state from ViewModel
     val dialogState by viewModel.dialogState.collectAsState()
@@ -73,26 +77,57 @@ fun CardReaderScreen(
     var enquiryResult by remember { mutableStateOf<CardRepository.CardEnquiryResult?>(null) }
     var batchNumberInput by remember { mutableStateOf("") }
     var isValidBatchNumber by remember { mutableStateOf(true) }
+    var isSearching by remember { mutableStateOf(false) }
 
     // Validate batch number input
-    val validateAndSetBatch: (String) -> Unit = { input ->
+    val validateBatchInput: (String) -> Unit = { input ->
         batchNumberInput = input
 
         if (input.isNotEmpty()) {
             // Check if input is a valid number and within reasonable range (1-50)
             val batchNum = input.toIntOrNull()
-            if (batchNum != null && batchNum in 1..50) {
-                val formattedBatch = "Batch ${batchNum.toString().padStart(3, '0')}"
-                viewModel.setSelectedBatch(formattedBatch)
-                isValidBatchNumber = true
-            } else {
-                isValidBatchNumber = false
-            }
+            isValidBatchNumber = batchNum != null && batchNum in 1..50
         } else {
             isValidBatchNumber = true
-            viewModel.setSelectedBatch("")
         }
+    }
 
+    // Button Search Click
+    val searchBatch: () -> Unit = {
+        if (batchNumberInput.isNotEmpty() && isValidBatchNumber) {
+            coroutineScope.launch {
+                isSearching = true
+                try {
+                    val batchNum = batchNumberInput.toInt()
+                    val formattedBatch = "Batch ${batchNum.toString().padStart(3, '0')}"
+
+                    //Load the batch from API
+                    val success = viewModel.loadSpecificBatch(formattedBatch)
+                    if (success) {
+                        viewModel.setSelectedBatch(formattedBatch)
+                        // Show success toast
+                        Toast.makeText(
+                            context,
+                            "Batch $batchNum fetched successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        // Show error if batch not found
+                        viewModel.showNotFoundDialog(
+                            title = "Batch not found",
+                            message = "Batch $batchNum is not available or active"
+                        )
+                    }
+                } catch (e: Exception) {
+                    viewModel.showNotFoundDialog(
+                        title = "Error",
+                        message = "Failed to load batch: ${e.message}"
+                    )
+                } finally {
+                    isSearching = false
+                }
+            }
+        }
     }
 
     Column(
@@ -101,15 +136,29 @@ fun CardReaderScreen(
             .padding(16.dp)
             .statusBarsPadding()
     ) {
-        // Header
-        Text(
-            text = "Card Batch Verification",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        // Header with Enquiry Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Card Batch Verification",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-        // Batch Selection Section
+            // New Enquiry button
+            OutlinedButton(
+                onClick = onEnquiryClick
+            ) {
+                Text("Enquiry")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        //Updated Batch Selected with Search Button
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -127,110 +176,97 @@ fun CardReaderScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Batch Number Input
-                OutlinedTextField(
-                    value = batchNumberInput,
-                    onValueChange = validateAndSetBatch,
-                    label = { Text("Batch Number") },
-                    placeholder = { Text("Enter batch number...") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = !isValidBatchNumber,
-                    supportingText = {
-                        if (!isValidBatchNumber) {
-                            Text(
-                                text = "Please enter a valid batch number (1-49)",
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp
-                            )
-                        } else if (selectedBatch.isNotEmpty()) {
-                            Text(
-                                text = "Selected: $selectedBatch",
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 12.sp
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Batch Info
-
-                if (selectedBatch.isNotEmpty() && isValidBatchNumber) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val batchStats by viewModel.batchStats.collectAsState()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-//                        Text(
-//                            text = "Cards Scanned",
-//                            fontSize = 14.sp,
-//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-//                        )
-//                        Text(
-//                            text = "Verified: ${batchStats.verifiedCards}",
-//                            fontSize = 14.sp,
-//                            color = MaterialTheme.colorScheme.primary
-//                        )
-                    }
-
-                    if (batchStats.totalCards > 0) {
-                        LinearProgressIndicator(
-                            progress = { (batchStats.verifiedCards.toFloat() / batchStats.totalCards) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                        )
-                        Text(
-                            text = "${
-                                String.format(
-                                    "%.1f",
-                                    batchStats.completionPercentage
+                // Batch Number Input with Search Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    OutlinedTextField(
+                        value = batchNumberInput,
+                        onValueChange = validateBatchInput,
+                        label = { Text("Batch Number") },
+                        placeholder = { Text("Enter batch number...") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = !isValidBatchNumber,
+                        supportingText = {
+                            if (!isValidBatchNumber) {
+                                Text(
+                                    text = "Please enter a valid batch number (1-50)",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp
                                 )
-                            }% Complete",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.resetCurrentBatch() },
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Text("Reset Batch")
+                            } else if (selectedBatch.isNotEmpty()) {
+                                Text(
+                                    text = "Selected: $selectedBatch",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 12.sp
+                                )
                             }
-                        }
-                    }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
 
-                    // Instructions
-                    if (selectedBatch.isNotEmpty() && isValidBatchNumber) {
-                        Spacer(modifier = Modifier.height(8.dp))
-//                        Card(
-//                            colors = CardDefaults.cardColors(
-//                                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-//                            )
-//                        ) {
-////                            Text(
-////                                text = "No cards scanned yet",
-////                                style = MaterialTheme.typography.titleMedium,
-////                                color = MaterialTheme.colorScheme.onSurfaceVariant
-////                            )
-//                            Text(
-//                                text = "📱 Ready to scan cards for $selectedBatch\n" +
-//                                        "Tap your NFC cards to verify them against this batch.",
-//                                fontSize = 15.sp,
-//                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-//                                modifier = Modifier.padding(12.dp)
-//                            )
-//                        }
+                    // Search Button
+                    OutlinedButton(
+                        onClick = searchBatch,
+                        enabled = batchNumberInput.isNotEmpty() && isValidBatchNumber && !isSearching,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        if (isSearching) {
+                            Text("Searching...")
+                        } else {
+                            Text("Search")
+                        }
                     }
                 }
+
+                // Show loading indicator when searching
+                if (isSearching) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Batch Info
+//                if (selectedBatch.isNotEmpty() && isValidBatchNumber) {
+//                    Spacer(modifier = Modifier.height(8.dp))
+//
+//                    val batchStats by viewModel.batchStats.collectAsState()
+//
+//                    if (batchStats.totalCards > 0) {
+//                        LinearProgressIndicator(
+//                            progress = { (batchStats.verifiedCards.toFloat() / batchStats.totalCards) },
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(top = 4.dp),
+//                        )
+//                        Text(
+//                            text = "${
+//                                String.format(
+//                                    "%.1f",
+//                                    batchStats.completionPercentage
+//                                )
+//                            }% Complete",
+//                            fontSize = 12.sp,
+//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+//                            modifier = Modifier.padding(top = 2.dp)
+//                        )
+//
+//                        Row(
+//                            modifier = Modifier.fillMaxWidth(),
+//                            horizontalArrangement = Arrangement.End
+//                        ) {
+//                            OutlinedButton(
+//                                onClick = { viewModel.resetCurrentBatch() },
+//                                modifier = Modifier.padding(top = 8.dp)
+//                            ) {
+//                                Text("Reset Batch")
+//                            }
+//                        }
+//                    }
+//                }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -262,7 +298,7 @@ fun CardReaderScreen(
                     OutlinedButton(
                         onClick = { viewModel.clearCards() }
                     ) {
-                        Text("Clear")
+                        Text("Clear All")
                     }
                 }
             }
@@ -270,7 +306,13 @@ fun CardReaderScreen(
             Spacer(modifier = Modifier.height(8.dp))
             SessionSubmissionSection(
                 viewModel = viewModel,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 8.dp),
+                onSubmissionSuccess = {
+                    // Clear all after successful submission
+                    viewModel.clearCards()
+                    viewModel.setSelectedBatch("")
+                    batchNumberInput = ""
+                }
             )
 
 
@@ -298,7 +340,11 @@ fun CardReaderScreen(
                                         enquiryResult = viewModel.performEnquiry(card.id)
                                         enquiryDialogCard = card
                                     } catch (e: Exception) {
-                                        //                                  Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Enquiry failed: ${e.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             }
