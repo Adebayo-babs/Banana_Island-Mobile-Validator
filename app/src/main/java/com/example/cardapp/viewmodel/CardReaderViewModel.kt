@@ -34,6 +34,13 @@ class CardReaderViewModel : ViewModel() {
         val completionPercentage: Double = if (totalCards > 0) (verifiedCards.toDouble()/totalCards) * 100 else 0.0
     )
 
+    data class EnquiryTrigger(
+        val result: CardRepository.CardEnquiryResult,
+        val cardId: String,
+        val readTimeMs: Long,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+
 
     companion object {
         val instance = CardReaderViewModel()
@@ -62,6 +69,9 @@ class CardReaderViewModel : ViewModel() {
     private val _dialogState = MutableStateFlow(DialogState())
     val dialogState: StateFlow<DialogState> = _dialogState.asStateFlow()
 
+    private val _enquiryResult = MutableStateFlow<EnquiryTrigger?>(null)
+    val enquiryResult: StateFlow<EnquiryTrigger?> = _enquiryResult.asStateFlow()
+
 
     private val _currentSession = MutableStateFlow<ScanningSession?>(null)
     val currentSession = _currentSession.asStateFlow()
@@ -84,6 +94,17 @@ class CardReaderViewModel : ViewModel() {
         // Load initial batch stats
 //        updateBatchStats()
     }
+
+    // Trigger enquiry result without adding to cards list
+    fun triggerEnquiryResult(result: CardRepository.CardEnquiryResult, cardId: String, readTimeMs: Long){
+        _enquiryResult.value = EnquiryTrigger(result, cardId, readTimeMs)
+    }
+
+    //Clear Enquiry Result
+    fun clearEnquiryResult() {
+        _enquiryResult.value = null
+    }
+
 
     fun getRepository(): CardRepository? = repository
 
@@ -283,6 +304,133 @@ class CardReaderViewModel : ViewModel() {
 
 
 
+//    suspend fun performGlobalEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+//        return try {
+//            Log.d(TAG, "Starting global enquiry for card: $cardId")
+//
+//            // Get all available batches
+//            val batches = _availableBatches.value
+//
+//            if (batches.isEmpty()) {
+//                return CardRepository.CardEnquiryResult(
+//                    cardExists = false,
+//                    batchName = null,
+//                    isVerified = false,
+//                    message = "No batches available for search",
+//                    batchCard = null,
+//                    verifiedCard = null,
+//
+//                )
+//            }
+//
+//            Log.d(TAG, "Searching across ${batches.size} batches...")
+//
+//            // Search through each batch
+//            for (batchName in batches) {
+//                try {
+//                    Log.d(TAG, "Checking batch: $batchName")
+//
+//                    // Load the batch and search for the card
+//                    repository?.loadSpecificBatch(batchName)
+//
+//                    val result = repository?.verifyScannedCardAgainstBatch(
+//                        scannedCardId = cardId,
+//                        targetBatchName = batchName,
+//                        holderName = null,
+//                        additionalData = emptyMap()
+//                    )
+//
+//                    if (result?.isSuccess == true) {
+//                        Log.d(TAG, "✅ Card found in batch: $batchName")
+//                        return CardRepository.CardEnquiryResult(
+//                            cardExists = true,
+//                            batchName = batchName,
+//                            isVerified = true,
+//                            message = "Card successfully found in $batchName",
+//                            batchCard = result.batchCard,
+//                            verifiedCard = null
+//                        )
+//                    }
+//
+//                } catch (e: Exception) {
+//                    Log.w(TAG, "Error searching batch $batchName: ${e.message}")
+//                    // Continue searching other batches
+//                    continue
+//                }
+//            }
+//
+//            // Card not found in any batch
+//            Log.d(TAG, "❌ Card not found in any of the ${batches.size} available batches")
+//
+//            return CardRepository.CardEnquiryResult(
+//                cardExists = false,
+//                batchName = null,
+//                isVerified = false,
+//                message = "Card not found in any of the ${batches.size} available batches",
+//                batchCard = null,
+//                verifiedCard = null
+//            )
+//
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during global enquiry: ${e.message}")
+//            return CardRepository.CardEnquiryResult(
+//                cardExists = false,
+//                batchName = null,
+//                isVerified = false,
+//                message = "Error during search: ${e.message}",
+//                batchCard = null,
+//                verifiedCard = null
+//            )
+//        }
+//    }
+
+    suspend fun performGlobalEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+        return try {
+            Log.d(TAG, "Starting global enquiry for card: $cardId")
+
+            // Check if repository exists
+            if (repository == null) {
+                return CardRepository.CardEnquiryResult(
+                    cardExists = false,
+                    batchName = null,
+                    isVerified = false,
+                    message = "Repository not initialized",
+                    batchCard = null,
+                    verifiedCard = null
+                )
+            }
+
+            // Call the repository's global enquiry method
+            repository!!.performGlobalEnquiry(cardId)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during global enquiry: ${e.message}")
+            CardRepository.CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Error during search: ${e.message}",
+                batchCard = null,
+                verifiedCard = null
+            )
+        }
+    }
+
+    // Clear only enquiry cards (not verification cards)
+    fun clearEnquiryCards() {
+        viewModelScope.launch {
+            val currentCards = _cards.value.toMutableList()
+            currentCards.removeAll { it.verificationStatus == "ENQUIRY" }
+            _cards.value = currentCards
+            Log.d(TAG, "Cleared enquiry cards")
+        }
+    }
+
+    // Method to check if we have any enquiry cards
+    fun hasEnquiryCards(): Boolean {
+        return _cards.value.any { it.verificationStatus == "ENQUIRY" }
+    }
+
 
 
 
@@ -298,7 +446,33 @@ class CardReaderViewModel : ViewModel() {
         Log.d(TAG, "Started new scanning session: ${session.sessionId}")
     }
 
+//    fun addCard(cardInfo: CardInfo) {
+//        val currentCards = _cards.value.toMutableList()
+//        currentCards.add(cardInfo)
+//        _cards.value = currentCards
+//
+//        // Add to current session if it exists and card is verified
+//        _currentSession.value?.let { session ->
+//            if (cardInfo.isVerified) {
+//                val scanTime = Instant.ofEpochMilli(cardInfo.timestamp)
+//                    .atOffset(ZoneOffset.UTC)
+//                    .format(DateTimeFormatter.ISO_INSTANT)
+//
+//                session.addScannedCard(cardInfo.id, scanTime)
+//                Log.d(TAG, "Added card to session: ${cardInfo.id}")
+//            }
+//        }
+//    }
+
     fun addCard(cardInfo: CardInfo) {
+
+        // Don't add enquiry cards to the main cards list
+        if (cardInfo.verificationStatus == "ENQUIRY") {
+            Log.d(TAG, "Skipping addition of enquiry card to main list: ${cardInfo.id}")
+            return
+        }
+
+
         val currentCards = _cards.value.toMutableList()
         currentCards.add(cardInfo)
         _cards.value = currentCards
@@ -312,7 +486,8 @@ class CardReaderViewModel : ViewModel() {
 
                 session.addScannedCard(cardInfo.id, scanTime)
                 Log.d(TAG, "Added card to session: ${cardInfo.id}")
-            }
+
+        }
         }
     }
 

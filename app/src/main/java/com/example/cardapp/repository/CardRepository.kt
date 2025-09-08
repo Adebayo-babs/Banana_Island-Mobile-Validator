@@ -61,6 +61,88 @@ class CardRepository(
         val verifiedCard: VerifiedCard? = null
     )
 
+    suspend fun performGlobalEnquiry(cardId: String): CardEnquiryResult {
+        return try {
+            Log.d("CardRepository", "Starting global enquiry for card: $cardId")
+
+            // Get all available batches
+            val availableBatches = getAvailableBatches()
+            Log.d("CardRepository", "Searching through ${availableBatches.size} batches")
+
+            if (availableBatches.isEmpty()) {
+                return CardEnquiryResult(
+                    cardExists = false,
+                    batchName = null,
+                    isVerified = false,
+                    message = "No batches available to search",
+                    batchCard = null,
+                    verifiedCard = null
+                )
+            }
+
+            // Search through each batch
+            for (batchName in availableBatches) {
+                Log.d("CardRepository", "Searching in batch: $batchName")
+
+                try {
+                    // Load batch data from API if not already loaded
+                    loadSpecificBatch(batchName)
+
+                    // Check if card exists in this batch's database
+                    val batchCard = batchCardDao.getCardById(cardId)
+
+                    if (batchCard != null && batchCard.batchName == batchName) {
+                        Log.d("CardRepository", "Card found in batch: $batchName")
+
+                        // Check if it's also been verified (scanned)
+                        val verifiedCard = verifiedCardDao.getVerifiedCardById(cardId)
+                        val isVerified = verifiedCard != null
+
+                        return CardEnquiryResult(
+                            cardExists = true,
+                            batchName = batchName,
+                            isVerified = isVerified,
+                            message = if (isVerified) {
+                                "Card found in $batchName and has been verified ✓"
+                            } else {
+                                "Card found in $batchName but not yet verified"
+                            },
+                            batchCard = batchCard,
+                            verifiedCard = verifiedCard
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("CardRepository", "Error searching batch $batchName: ${e.message}")
+                    // Continue searching other batches even if one fails
+                    continue
+                }
+            }
+
+            // Card not found in any batch
+            Log.d("CardRepository", "Card not found in any of the ${availableBatches.size} batches")
+            CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Card ID '$cardId' was not found in any of the ${availableBatches.size} available batches",
+                batchCard = null,
+                verifiedCard = null
+            )
+
+        } catch (e: Exception) {
+            Log.e("CardRepository", "Error during global enquiry: ${e.message}")
+            CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Error during enquiry: ${e.message}",
+                batchCard = null,
+                verifiedCard = null
+            )
+        }
+    }
+
     companion object {
         private const val TAG = "CardRepository"
     }

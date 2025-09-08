@@ -25,9 +25,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.cardapp.model.CardInfo
 import com.example.cardapp.model.database.CardDatabase
 import com.example.cardapp.repository.CardRepository
@@ -52,6 +49,8 @@ class MainActivity : ComponentActivity() {
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var techListsArray: Array<Array<String>>? = null
     private val cardDataReader = OptimizedCardDataReader()
+    private var isEnquiryMode by mutableStateOf(false)
+    private var isTestMode by mutableStateOf(true)
 
 //    Database and repository
     private lateinit var cardRepository: CardRepository
@@ -78,19 +77,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CardAppTheme {
-                val navController = rememberNavController()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
 
                     if (showEnquiryScreen) {
+                        // Set enquiry mode when showing enquiry screen
+                        isEnquiryMode = true
                         EnquiryScreen(
                             onBackClick = {
                                 showEnquiryScreen = false
+                                isEnquiryMode = false
                             }
                         )
                     } else {
+                        isEnquiryMode = false
                         CardReaderScreen(
                             onEnquiryClick = {
                                 showEnquiryScreen = true
@@ -227,15 +229,92 @@ class MainActivity : ComponentActivity() {
         // Cancel any previous reading operation
         readingJob?.cancel()
 
-        // Get the currently selected batch from viewModel
-        val selectedBatch = CardReaderViewModel.instance.getCurrentBatch()
+        // Handle based on mode
+        if (isEnquiryMode) {
+            processEnquiryNFCTag(tag, isoDep)
+        }else {
+            // Batch verification logic
+            val selectedBatch = CardReaderViewModel.instance.getCurrentBatch()
+            if (selectedBatch.isEmpty()) {
+                Toast.makeText(this, "Please select a batch first", Toast.LENGTH_SHORT).show()
+                return
+            }
 
-        if (selectedBatch.isEmpty()) {
-            Toast.makeText(this, "Please select a batch first", Toast.LENGTH_SHORT).show()
-            return
+            processVerificationNFCTag(tag, isoDep, selectedBatch)
         }
+    }
 
-        // Use coroutines with proper error handling and timeouts
+    private fun processEnquiryNFCTag(tag: Tag, isoDep: IsoDep) {
+        readingJob = lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Starting enquiry card read")
+                val startTime = System.currentTimeMillis()
+
+                // Show immediate feedback to user
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Reading card for enquiry...", Toast.LENGTH_SHORT).show()
+                }
+
+                // Read card data
+                val cardData = withContext(Dispatchers.IO) {
+                    withTimeout(2000L) {
+                        cardDataReader.readCardDataAsync(isoDep)
+                    }
+                }
+
+                val totalTime = System.currentTimeMillis() - startTime
+                Log.d(TAG, "ENQUIRY CARD READ COMPLETED in ${totalTime}ms")
+                Log.d(TAG, "Card ID: ${cardData.cardId}")
+
+                // Process the card data on main thread
+                withContext(Dispatchers.Main) {
+                    if (cardData.cardId != null) {
+                        // Create a CardInfo object for enquiry (won't be added to verification list)
+                        performDirectEnquiry(cardData.cardId, totalTime)
+
+                        Toast.makeText(this@MainActivity, "Card read successfully", Toast.LENGTH_SHORT).show()
+
+                    } else {
+                        val message = "Could not read card ID (read time: ${totalTime}ms)"
+                        Log.w(TAG, message)
+                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Card read timeout after 2 seconds")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Card read timeout (>2s)", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing card: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun performDirectEnquiry(cardId: String, readTimeMs: Long) {
+        lifecycleScope.launch {
+            try {
+                val enquiryResult = CardReaderViewModel.instance.performGlobalEnquiry(cardId)
+                CardReaderViewModel.instance.triggerEnquiryResult(enquiryResult, cardId, readTimeMs)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during direct enquiry: ${e.message}")
+                val errorResult = CardRepository.CardEnquiryResult(
+                    cardExists = false,
+                    batchName = null,
+                    isVerified = false,
+                    message = "Error during enquiry: ${e.message}",
+                    batchCard = null,
+                    verifiedCard = null
+                    )
+                CardReaderViewModel.instance.triggerEnquiryResult(errorResult, cardId, readTimeMs)
+            }
+        }
+    }
+
+    private fun processVerificationNFCTag(tag: Tag, isoDep: IsoDep, selectedBatch: String) {
         readingJob = lifecycleScope.launch {
             try {
                 Log.d(TAG, "=== STARTING OPTIMIZED CARD READ ===")
@@ -287,6 +366,97 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
+//    private fun processVerificationNFCTag(tag: Tag, isoDep: IsoDep, selectedBatch: String) {
+//        readingJob = lifecycleScope.launch {
+//            try {
+//                Log.d(TAG, "=== STARTING TEST MODE CARD READ ===")
+//                val startTime = System.currentTimeMillis()
+//
+//                // Show immediate feedback to user
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
+//                }
+//
+//                if (isTestMode) {
+//                    // TEST MODE: Just read card and add to list without verification
+//                    val cardData = withContext(Dispatchers.IO) {
+//                        withTimeout(2000L) {
+//                            cardDataReader.readCardDataAsync(isoDep)
+//                        }
+//                    }
+//
+//                    val totalTime = System.currentTimeMillis() - startTime
+//                    Log.d(TAG, "TEST MODE - Card read completed in ${totalTime}ms")
+//
+//                    withContext(Dispatchers.Main) {
+//                        val cardInfo = CardInfo(
+//                            id = cardData.cardId ?: "UNKNOWN_${System.currentTimeMillis()}",
+//                            timestamp = System.currentTimeMillis(),
+//                            additionalInfo = buildString {
+////                                appendLine("TEST MODE - No verification")
+//                                cardData.holderName?.let {
+//                                    if (it.isNotBlank()) appendLine("Name: $it")
+//                                }
+//                                appendLine("Read time: ${totalTime}ms")
+//                            }.trim(),
+//                            techList = tag.techList.toList(),
+//                            verificationStatus = "TEST MODE",
+//                            batchName = "TEST",
+//                            isVerified = true // Mark as verified for UI purposes
+//                        )
+//
+//                        // Add to UI
+//                        CardReaderViewModel.instance.addCard(cardInfo)
+//
+//                        Toast.makeText(
+//                            this@MainActivity,
+//                            "Card added (Test Mode)",
+//                            Toast.LENGTH_SHORT
+//                        ).show()
+//                    }
+//                } else {
+//                    // ORIGINAL VERIFICATION CODE (keep existing logic)
+//                    val cardData = withContext(Dispatchers.IO) {
+//                        withTimeout(2000L) {
+//                            cardDataReader.readCardDataAsync(isoDep)
+//                        }
+//                    }
+//
+//                    val totalTime = System.currentTimeMillis() - startTime
+//                    Log.d(TAG, "CARD READ COMPLETED in ${totalTime}ms")
+//
+//                    withContext(Dispatchers.Main) {
+//                        if (cardData.cardId != null) {
+//                            performFastCardVerification(cardData, tag, totalTime, selectedBatch)
+//                        } else {
+//                            val message = "Could not read card ID (read time: ${totalTime}ms)"
+//                            Log.w(TAG, message)
+//                            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+//                            addErrorCardToUI(tag, "NO_ID_FOUND", totalTime, selectedBatch)
+//                        }
+//                    }
+//                }
+//            } catch (e: TimeoutCancellationException) {
+//                Log.e(TAG, "Card read timeout after 2 seconds")
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Card read timeout (>2s)", Toast.LENGTH_LONG).show()
+//                    if (!isTestMode) {
+//                        addErrorCardToUI(tag, "TIMEOUT", 2000, selectedBatch)
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error processing card: ${e.message}")
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
+//                    if (!isTestMode) {
+//                        addErrorCardToUI(tag, "ERROR: ${e.message}", 0, selectedBatch)
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     private suspend fun performFastCardVerification(
         cardData: OptimizedCardDataReader.CardData,

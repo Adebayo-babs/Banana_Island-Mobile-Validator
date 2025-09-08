@@ -13,6 +13,10 @@ interface VerifiedCardDao {
     @Query("SELECT * FROM verified_cards ORDER BY verified_at DESC")
     fun getAllVerifiedCards(): Flow<List<VerifiedCard>>
 
+    // In BatchCardDao
+    @Query("SELECT * FROM batch_cards WHERE card_id = :cardId LIMIT 1")
+    suspend fun getBatchCardById(cardId: String): BatchCard?
+
     // NEW: Get verified card IDs by batch (for filtering unverified cards)
     @Query("SELECT card_id FROM verified_cards WHERE batch_name = :batchName")
     suspend fun getVerifiedCardIdsByBatch(batchName: String): List<String>

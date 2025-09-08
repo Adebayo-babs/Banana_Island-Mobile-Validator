@@ -63,7 +63,6 @@ fun CardReaderScreen(
 
     val cards by viewModel.cards.collectAsState()
     val selectedBatch by viewModel.selectedBatch.collectAsState()
-    val availableBatches by viewModel.availableBatches.collectAsState()
     val context = LocalContext.current
 
     // Dialog state from ViewModel
@@ -198,7 +197,8 @@ fun CardReaderScreen(
                                 )
                             } else if (selectedBatch.isNotEmpty()) {
                                 Text(
-                                    text = "Selected: $selectedBatch",
+//                                    Selected: $selectedBatch
+                                    text = "",
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = 12.sp
                                 )
@@ -288,7 +288,8 @@ fun CardReaderScreen(
 //                        ❌ $notFoundCount not found
 
                         Text(
-                            text = "✅ $verifiedCount verified ",
+//                            $verifiedCount verified
+                                text = "✅ ",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
