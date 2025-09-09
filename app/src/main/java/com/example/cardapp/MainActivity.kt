@@ -257,7 +257,7 @@ class MainActivity : ComponentActivity() {
 
                 // Read card data
                 val cardData = withContext(Dispatchers.IO) {
-                    withTimeout(2000L) {
+                    withTimeout(5000L) {
                         cardDataReader.readCardDataAsync(isoDep)
                     }
                 }
@@ -278,17 +278,54 @@ class MainActivity : ComponentActivity() {
                         val message = "Could not read card ID (read time: ${totalTime}ms)"
                         Log.w(TAG, message)
                         Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+
+                        // Trigger error result
+                        val errorResult = CardRepository.CardEnquiryResult(
+                            cardExists = false,
+                            batchName = null,
+                            isVerified = false,
+                            message = "Could not read card ID",
+                            batchCard = null,
+                            verifiedCard = null
+                        )
+                        CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "UNKNOWN_ID", totalTime)
+
+
                     }
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Card read timeout after 2 seconds")
+                Log.e(TAG, "Card read timeout after 5 seconds")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Card read timeout (>2s)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "Card read timeout (>5s)", Toast.LENGTH_LONG).show()
+
+                    // Trigger timeout error result
+                    val errorResult = CardRepository.CardEnquiryResult(
+                        cardExists = false,
+                        batchName = null,
+                        isVerified = false,
+                        message = "Card read timeout after 5 seconds",
+                        batchCard = null,
+                        verifiedCard = null
+                    )
+                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "TIMEOUT", 5000)
+
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing card: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
+
+                    // Trigger general error result
+                    val errorResult = CardRepository.CardEnquiryResult(
+                        cardExists = false,
+                        batchName = null,
+                        isVerified = false,
+                        message = "Error reading card: ${e.message}",
+                        batchCard = null,
+                        verifiedCard = null
+                    )
+                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "ERROR", 0)
+
                 }
             }
         }
@@ -297,20 +334,140 @@ class MainActivity : ComponentActivity() {
     private fun performDirectEnquiry(cardId: String, readTimeMs: Long) {
         lifecycleScope.launch {
             try {
-                val enquiryResult = CardReaderViewModel.instance.performGlobalEnquiry(cardId)
-                CardReaderViewModel.instance.triggerEnquiryResult(enquiryResult, cardId, readTimeMs)
+
+                // Start searching
+                CardReaderViewModel.instance.setEnquirySearching(true)
+
+                Log.d(TAG, "Starting direct enquiry for card: $cardId")
+
+                // Show that we're searching
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Searching across batches...", Toast.LENGTH_SHORT).show()
+                }
+
+                // Perform the global enquiry
+                val enquiryResult = withContext(Dispatchers.IO) {
+                    performComprehensiveEnquiry(cardId)
+                }
+
+                Log.d(TAG, "Direct enquiry completed. Result: ${enquiryResult.message}")
+
+                // Trigger the result in the ViewModel - this will show the dialog
+                withContext(Dispatchers.Main) {
+                    //Stop searching
+                    CardReaderViewModel.instance.setEnquirySearching(false)
+                    //Trigger the result in the ViewModel - this will show the dialog
+                    CardReaderViewModel.instance.triggerEnquiryResult(enquiryResult,cardId, readTimeMs)
+
+                }
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error during direct enquiry: ${e.message}")
-                val errorResult = CardRepository.CardEnquiryResult(
+
+                withContext(Dispatchers.Main) {
+                    // Stop searching on error
+                    CardReaderViewModel.instance.setEnquirySearching(false)
+                    val errorResult = CardRepository.CardEnquiryResult(
+                        cardExists = false,
+                        batchName = null,
+                        isVerified = false,
+                        message = "Error during enquiry: ${e.message}",
+                        batchCard = null,
+                        verifiedCard = null
+                    )
+                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, cardId, readTimeMs)
+                }
+            }
+        }
+    }
+
+
+    // ADDED: Comprehensive enquiry method
+    private suspend fun performComprehensiveEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+        return try {
+            Log.d(TAG, "Starting comprehensive enquiry for card: $cardId")
+
+            // Get all available batches
+            val batches = CardReaderViewModel.instance.availableBatches.value
+
+            if (batches.isEmpty()) {
+                Log.w(TAG, "No batches available for search")
+                return CardRepository.CardEnquiryResult(
                     cardExists = false,
                     batchName = null,
                     isVerified = false,
-                    message = "Error during enquiry: ${e.message}",
+                    message = "No batches available for search",
                     batchCard = null,
                     verifiedCard = null
-                    )
-                CardReaderViewModel.instance.triggerEnquiryResult(errorResult, cardId, readTimeMs)
+                )
             }
+
+            Log.d(TAG, "Searching across ${batches.size} batches: ${batches.joinToString(", ")}")
+
+            // Search through each batch
+            for (batchName in batches) {
+                try {
+                    Log.d(TAG, "Checking batch: $batchName")
+
+                    // Load the specific batch
+                    val batchLoaded = cardRepository.loadSpecificBatch(batchName)
+
+                    if (!batchLoaded) {
+                        Log.w(TAG, "Failed to load batch: $batchName")
+                        continue
+                    }
+
+                    // Search for the card in this batch
+                    val verificationResult = cardRepository.verifyScannedCardAgainstBatch(
+                        scannedCardId = cardId,
+                        targetBatchName = batchName,
+                        holderName = null,
+                        additionalData = emptyMap()
+                    )
+
+                    if (verificationResult.isSuccess) {
+                        Log.d(TAG, "✅ Card found in batch: $batchName")
+
+
+                        return CardRepository.CardEnquiryResult(
+                            cardExists = true,
+                            batchName = batchName,
+                            isVerified = true,
+                            message = "Card found and verified in $batchName",
+                            batchCard = verificationResult.batchCard,
+                            verifiedCard = null
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error searching batch $batchName: ${e.message}")
+                    // Continue searching other batches
+                    continue
+                }
+            }
+
+            // Card not found in any batch
+            Log.d(TAG, "❌ Card not found in any of the ${batches.size} available batches")
+
+            return CardRepository.CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Card not found in any of the ${batches.size} available batches",
+                batchCard = null,
+                verifiedCard = null
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during comprehensive enquiry: ${e.message}")
+            return CardRepository.CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Error during search: ${e.message}",
+                batchCard = null,
+                verifiedCard = null
+            )
         }
     }
 

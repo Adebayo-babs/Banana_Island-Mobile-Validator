@@ -1,5 +1,6 @@
 package com.example.cardapp
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,72 +52,49 @@ fun EnquiryScreen(
     onBackClick: () -> Unit,
     viewModel: CardReaderViewModel = viewModel { CardReaderViewModel.instance }
 ) {
-    var enquiryResult by remember { mutableStateOf<CardRepository.CardEnquiryResult?>(null) }
-    var isSearching by remember { mutableStateOf(false) }
-    var lastScannedCard by remember { mutableStateOf<CardInfo?>(null) }
-    var showResultDialog by remember { mutableStateOf(false) }
     var enquiryHistory by remember { mutableStateOf<List<EnquiryHistoryItem>>(emptyList()) }
+    val isSearching by viewModel.isEnquirySearching.collectAsState()
+    var showResultDialog by remember { mutableStateOf(false) }
+    var currentResult by remember { mutableStateOf<CardRepository.CardEnquiryResult?>(null) }
+    var currentCardId by remember { mutableStateOf<String?>(null) }
 
 
-    val cards by viewModel.cards.collectAsState()
     val availableBatches by viewModel.availableBatches.collectAsState()
+    val enquiryResult by viewModel.enquiryResult.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Listen for new cards being scanned
-    LaunchedEffect(cards.size) {
-        if (cards.isNotEmpty()) {
-            val latestCard = cards.first()
-            // Only process enquiry cards and avoid duplicates
-            if (latestCard != lastScannedCard && latestCard.verificationStatus == "ENQUIRY") {
-                lastScannedCard = latestCard
 
-                // Automatically search when a new card is scanned
-                isSearching = true
-                coroutineScope.launch {
-                    try {
-                        enquiryResult = viewModel.performGlobalEnquiry(latestCard.id)
+    // Listen for enquiry results from the viewModel
+    LaunchedEffect(enquiryResult) {
 
-                        // Add to history
-                        val historyItem = EnquiryHistoryItem(
-                            cardId = latestCard.id,
-                            timestamp = System.currentTimeMillis(),
-                            found = enquiryResult?.cardExists == true,
-                            batchName = enquiryResult?.batchName,
-                            isVerified = enquiryResult?.isVerified == true,
-                            message = enquiryResult?.message ?: "Unknown error"
-                        )
-                        enquiryHistory = listOf(historyItem) + enquiryHistory.take(9) // Keep last 10
+        enquiryResult?.let { trigger ->
+            Log.d("EnquiryScreen", "Received enquiry result: ${trigger.result.message}")
 
-                        showResultDialog = true
-                    } catch (e: Exception) {
-                        enquiryResult = CardRepository.CardEnquiryResult(
-                            cardExists = false,
-                            batchName = null,
-                            isVerified = false,
-                            message = "Error during enquiry: ${e.message}",
-                            batchCard = null,
-                            verifiedCard = null
-                        )
+            // Stop the searching indicator
+//            isSearching = false
 
-                        // Add error to history
-                        val historyItem = EnquiryHistoryItem(
-                            cardId = latestCard.id,
-                            timestamp = System.currentTimeMillis(),
-                            found = false,
-                            batchName = null,
-                            isVerified = false,
-                            message = "Error: ${e.message}"
-                        )
-                        enquiryHistory = listOf(historyItem) + enquiryHistory.take(9)
+            //Set the current result for dialog
+            currentResult = trigger.result
+            currentCardId = trigger.cardId
+            showResultDialog = true
 
-                        showResultDialog = true
-                    } finally {
-                        isSearching = false
-                    }
-                }
-            }
+            // Add to history
+            val historyItem = EnquiryHistoryItem(
+                cardId = trigger.cardId,
+                timestamp = trigger.timestamp,
+                found = trigger.result.cardExists,
+                batchName = trigger.result.batchName,
+                isVerified = trigger.result.isVerified,
+                message = trigger.result.message
+            )
+            enquiryHistory = listOf(historyItem) + enquiryHistory.take(9) // Keep last 10
+
+            // Clear the enquiry result from viewModel
+            viewModel.clearEnquiryResult()
+
         }
     }
+
 
     Column(
         modifier = Modifier
@@ -259,21 +237,28 @@ fun EnquiryScreen(
     }
 
     // Result Dialog
-    if (showResultDialog && enquiryResult != null) {
+    if (showResultDialog && currentResult != null && currentCardId != null) {
+        Log.d("EnquiryScreen", "Showing dialog for result: ${currentResult?.message}")
         EnquiryResultDialogDone(
-            result = enquiryResult!!,
+            result = currentResult!!,
+            cardId = currentCardId!!,
             onDismiss = {
+                Log.d("EnquiryScreen", "Dialog dismissed")
                 showResultDialog = false
-                enquiryResult = null
+                currentResult = null
+                // Reset processed card ID to allow same card to be scanned again
+                currentCardId = null
             }
         )
     }
+
 }
 
 
 @Composable
 fun EnquiryResultDialogDone(
     result: CardRepository.CardEnquiryResult,
+    cardId: String,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -312,34 +297,40 @@ fun EnquiryResultDialogDone(
         },
         text = {
             Column {
+                Text(
+                    text = "Card ID: $cardId",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 if (result.cardExists && result.batchName != null) {
                     Text(
-                        text = "Batch: ${result.batchName}",
+                        text = "Found in: ${result.batchName}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (result.isVerified) {
-                        Text(
-                            text = "✅ This card has been verified in ${result.batchName}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Text(
-                            text = "⚠️ This card exists in ${result.batchName} but has not been verified yet",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
+                    Text(
+                        text = if (result.isVerified) {
+                            "✅ This card has been verified in ${result.batchName}"
+                        } else {
+                            "⚠️ This card exists in ${result.batchName} but has not been verified yet"
+                        },
+                        fontSize = 14.sp,
+                        color = if (result.isVerified) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
+
                 Text(
                     text = result.message,
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
         },

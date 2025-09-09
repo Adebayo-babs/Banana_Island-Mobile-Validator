@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cardapp.model.CardInfo
 import com.example.cardapp.model.ScanningSession
 import com.example.cardapp.model.SubmitScannedCardsResponse
@@ -75,6 +74,14 @@ class CardReaderViewModel : ViewModel() {
 
     private val _currentSession = MutableStateFlow<ScanningSession?>(null)
     val currentSession = _currentSession.asStateFlow()
+
+    // Add to CardReaderViewModel
+    private val _isEnquirySearching = MutableStateFlow(false)
+    val isEnquirySearching: StateFlow<Boolean> = _isEnquirySearching.asStateFlow()
+
+    fun setEnquirySearching(searching: Boolean) {
+        _isEnquirySearching.value = searching
+    }
 
     init {
         // Load available batches at startup
@@ -297,9 +304,7 @@ class CardReaderViewModel : ViewModel() {
         }
     }
 
-    suspend fun getCurrentBatchStats(): CardRepository.VerificationStats? {
-        return repository?.getVerificationStats(_selectedBatch.value)
-    }
+
 
 
 
@@ -416,20 +421,9 @@ class CardReaderViewModel : ViewModel() {
         }
     }
 
-    // Clear only enquiry cards (not verification cards)
-    fun clearEnquiryCards() {
-        viewModelScope.launch {
-            val currentCards = _cards.value.toMutableList()
-            currentCards.removeAll { it.verificationStatus == "ENQUIRY" }
-            _cards.value = currentCards
-            Log.d(TAG, "Cleared enquiry cards")
-        }
-    }
 
-    // Method to check if we have any enquiry cards
-    fun hasEnquiryCards(): Boolean {
-        return _cards.value.any { it.verificationStatus == "ENQUIRY" }
-    }
+
+
 
 
 
@@ -464,16 +458,54 @@ class CardReaderViewModel : ViewModel() {
 //        }
 //    }
 
-    fun addCard(cardInfo: CardInfo) {
+    // Add this to CardReaderViewModel class:
 
-        // Don't add enquiry cards to the main cards list
+    // New StateFlow specifically for enquiry cards
+    private val _enquiryCards = MutableStateFlow<List<CardInfo>>(emptyList())
+    val enquiryCards: StateFlow<List<CardInfo>> = _enquiryCards.asStateFlow()
+
+    // Modified addCard method:
+//    fun addCard(cardInfo: CardInfo) {
+//        if (cardInfo.verificationStatus == "ENQUIRY") {
+//            Log.d(TAG, "Adding enquiry card to enquiry list: ${cardInfo.id}")
+//            // Add to separate enquiry cards list
+//            val currentEnquiryCards = _enquiryCards.value.toMutableList()
+//            currentEnquiryCards.add(cardInfo)
+//            _enquiryCards.value = currentEnquiryCards
+//            return
+//        }
+//
+//        // Regular cards processing
+//        val currentCards = _cards.value.toMutableList()
+//        currentCards.add(cardInfo)
+//        _cards.value = currentCards
+//
+//        // Add to current session if it exists and card is verified
+//        _currentSession.value?.let { session ->
+//            if (cardInfo.isVerified) {
+//                val scanTime = Instant.ofEpochMilli(cardInfo.timestamp)
+//                    .atOffset(ZoneOffset.UTC)
+//                    .format(DateTimeFormatter.ISO_INSTANT)
+//
+//                session.addScannedCard(cardInfo.id, scanTime)
+//                Log.d(TAG, "Added card to session: ${cardInfo.id}")
+//            }
+//        }
+//    }
+
+    // In CardReaderViewModel, replace the addCard method with this:
+    fun addCard(cardInfo: CardInfo) {
+        val currentCards = _cards.value.toMutableList()
+
+        // For enquiry cards, add temporarily for detection but don't add to session
         if (cardInfo.verificationStatus == "ENQUIRY") {
-            Log.d(TAG, "Skipping addition of enquiry card to main list: ${cardInfo.id}")
+            currentCards.add(cardInfo)
+            _cards.value = currentCards
+            Log.d(TAG, "Added enquiry card (temporary): ${cardInfo.id}")
             return
         }
 
-
-        val currentCards = _cards.value.toMutableList()
+        // For verification cards, add to both list and session
         currentCards.add(cardInfo)
         _cards.value = currentCards
 
@@ -486,9 +518,27 @@ class CardReaderViewModel : ViewModel() {
 
                 session.addScannedCard(cardInfo.id, scanTime)
                 Log.d(TAG, "Added card to session: ${cardInfo.id}")
+            }
+        }
+    }
 
+    // Clear only enquiry cards (not verification cards)
+    fun clearEnquiryCards() {
+        viewModelScope.launch {
+            val currentCards = _cards.value.toMutableList()
+            currentCards.removeAll { it.verificationStatus == "ENQUIRY" }
+            _cards.value = currentCards
+            Log.d(TAG, "Cleared enquiry cards")
         }
-        }
+    }
+
+    // Method to check if we have any enquiry cards
+    fun hasEnquiryCards(): Boolean {
+        return _cards.value.any { it.verificationStatus == "ENQUIRY" }
+    }
+
+    suspend fun getCurrentBatchStats(): CardRepository.VerificationStats? {
+        return repository?.getVerificationStats(_selectedBatch.value)
     }
 
     suspend fun submitCurrentSession(notes: String? = null): SubmitScannedCardsResponse? {
