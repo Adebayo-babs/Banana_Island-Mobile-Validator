@@ -78,9 +78,17 @@ fun CardReaderScreen(
     var isValidBatchNumber by remember { mutableStateOf(true) }
     var isSearching by remember { mutableStateOf(false) }
 
+    // ADDED: State to track batch fetch success
+    var batchFetched by remember { mutableStateOf(false) }
+    var fetchedBatchInfo by remember { mutableStateOf("") }
+
     // Validate batch number input
     val validateBatchInput: (String) -> Unit = { input ->
         batchNumberInput = input
+        // Reset batch fetched state when input changes
+        batchFetched = false
+        fetchedBatchInfo = ""
+
 
         if (input.isNotEmpty()) {
             // Check if input is a valid number and within reasonable range (1-50)
@@ -96,6 +104,7 @@ fun CardReaderScreen(
         if (batchNumberInput.isNotEmpty() && isValidBatchNumber) {
             coroutineScope.launch {
                 isSearching = true
+                batchFetched = false
                 try {
                     val batchNum = batchNumberInput.toInt()
                     val formattedBatch = "Batch ${batchNum.toString().padStart(3, '0')}"
@@ -104,6 +113,9 @@ fun CardReaderScreen(
                     val success = viewModel.loadSpecificBatch(formattedBatch)
                     if (success) {
                         viewModel.setSelectedBatch(formattedBatch)
+                        // Set batch fetched state
+                        batchFetched = true
+                        fetchedBatchInfo = formattedBatch
                         // Show success toast
                         Toast.makeText(
                             context,
@@ -189,19 +201,25 @@ fun CardReaderScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = !isValidBatchNumber,
                         supportingText = {
-                            if (!isValidBatchNumber) {
-                                Text(
-                                    text = "Please enter a valid batch number (1-50)",
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontSize = 12.sp
-                                )
-                            } else if (selectedBatch.isNotEmpty()) {
-                                Text(
-//                                    Selected: $selectedBatch
-                                    text = "",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 12.sp
-                                )
+                            when {
+                                !isValidBatchNumber -> {
+                                    Text(
+                                        text = "Please enter a valid batch number (1-50)",
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                batchFetched -> {
+                                    val normalizedBatch = fetchedBatchInfo
+                                        .filter { it.isDigit() }
+                                        .toIntOrNull()
+                                        ?.toString() ?: fetchedBatchInfo
+                                    Text(
+                                        text = "Batch $normalizedBatch fetched successfully",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 15.sp
+                                    )
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f)

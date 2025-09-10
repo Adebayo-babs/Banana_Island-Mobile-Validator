@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
     private var techListsArray: Array<Array<String>>? = null
     private val cardDataReader = OptimizedCardDataReader()
     private var isEnquiryMode by mutableStateOf(false)
-    private var isTestMode by mutableStateOf(true)
+//    private var isTestMode by mutableStateOf(true)
 
 //    Database and repository
     private lateinit var cardRepository: CardRepository
@@ -341,13 +341,13 @@ class MainActivity : ComponentActivity() {
                 Log.d(TAG, "Starting direct enquiry for card: $cardId")
 
                 // Show that we're searching
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Searching across batches...", Toast.LENGTH_SHORT).show()
-                }
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Searching across batches...", Toast.LENGTH_SHORT).show()
+//                }
 
                 // Perform the global enquiry
                 val enquiryResult = withContext(Dispatchers.IO) {
-                    performComprehensiveEnquiry(cardId)
+                    performDirectApiEnquiry(cardId)
                 }
 
                 Log.d(TAG, "Direct enquiry completed. Result: ${enquiryResult.message}")
@@ -381,6 +381,190 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+//        return try {
+//            Log.d(TAG, "Making direct API call for card: $cardId")
+//
+//            // Use the direct API endpoint for enquiry
+//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
+//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
+//
+//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
+//
+//            // Convert API response to CardEnquiryResult
+//            CardRepository.CardEnquiryResult(
+//                cardExists = apiResponse.cardExists,
+//                batchName = apiResponse.batchNumber?.let { "Batch ${it.padStart(3, '0')}" },
+//                isVerified = apiResponse.isVerified,
+//                message = apiResponse.message,
+//                batchCard = null, // API doesn't return full batch card details in enquiry
+//                verifiedCard = null // API doesn't return full verified card details in enquiry
+//            )
+//
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
+//            CardRepository.CardEnquiryResult(
+//                cardExists = false,
+//                batchName = null,
+//                isVerified = false,
+//                message = "Failed to query card database: ${e.message}",
+//                batchCard = null,
+//                verifiedCard = null
+//            )
+//        }
+//    }
+
+//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+//        return try {
+//            Log.d(TAG, "Making direct API call for card: $cardId")
+//
+//            // Use the direct API endpoint for enquiry
+//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
+//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
+//
+//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
+//            Log.d(TAG, "API Response - message: ${apiResponse.message}")
+//
+//            // Determine if card exists based on multiple indicators
+//            val cardExists = apiResponse.cardExists ||
+//                    apiResponse.batchNumber != null ||
+//                    apiResponse.message.contains("successfully", ignoreCase = true)
+//
+//            // Format batch name properly if found
+//            val formattedBatchName = apiResponse.batchNumber?.let { batchNum ->
+//                when {
+//                    batchNum.startsWith("Batch", ignoreCase = true) -> batchNum
+//                    batchNum.length <= 3 -> "Batch ${batchNum.padStart(3, '0')}"
+//                    else -> "Batch $batchNum"
+//                }
+//            }
+//
+//            // Convert API response to CardEnquiryResult with proper field mapping
+//            CardRepository.CardEnquiryResult(
+//                cardExists = cardExists,
+//                batchName = formattedBatchName,
+//                isVerified = apiResponse.isVerified,
+//                message = apiResponse.message,
+//                batchCard = null, // API doesn't return full batch card details in enquiry
+//                verifiedCard = null // API doesn't return full verified card details in enquiry
+//            )
+//
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
+//            CardRepository.CardEnquiryResult(
+//                cardExists = false,
+//                batchName = null,
+//                isVerified = false,
+//                message = "Failed to query card database: ${e.message}",
+//                batchCard = null,
+//                verifiedCard = null
+//            )
+//        }
+//    }
+
+
+//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+//        return try {
+//            Log.d(TAG, "Making direct API call for card: $cardId")
+//
+//            // Use the direct API endpoint for enquiry
+//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
+//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
+//
+//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
+//            Log.d(TAG, "API Response - message: ${apiResponse.message}")
+//
+//            // Determine if card exists based on multiple indicators
+//            val cardExists = apiResponse.cardExists ||
+//                    apiResponse.batchNumber != null ||
+//                    apiResponse.message.contains("successfully", ignoreCase = true)
+//
+//            // Format batch name to include both name and number for display
+//            val formattedBatchName = apiResponse.batchNumber?.let { batchNum ->
+//                // Clean the batch number string
+//                val cleanBatchNum = batchNum.trim()
+//
+//                when {
+//                    // If it already contains "Batch", use as is
+//                    cleanBatchNum.startsWith("Batch", ignoreCase = true) -> cleanBatchNum
+//                    // If it's just a number, format it properly
+//                    cleanBatchNum.matches(Regex("""\d+""")) -> {
+//                        val paddedNum = cleanBatchNum.padStart(3, '0')
+//                        "Batch $paddedNum"
+//                    }
+//                    // For other formats, prepend "Batch"
+//                    else -> "Batch $cleanBatchNum"
+//                }
+//            }
+//
+//            Log.d(TAG, "Formatted batch name: $formattedBatchName")
+//
+//            // Convert API response to CardEnquiryResult with proper field mapping
+//            CardRepository.CardEnquiryResult(
+//                cardExists = cardExists,
+//                batchName = formattedBatchName,
+//                isVerified = apiResponse.isVerified,
+//                message = apiResponse.message,
+//                batchCard = null, // API doesn't return full batch card details in enquiry
+//                verifiedCard = null // API doesn't return full verified card details in enquiry
+//            )
+//
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
+//            CardRepository.CardEnquiryResult(
+//                cardExists = false,
+//                batchName = null,
+//                isVerified = false,
+//                message = "Failed to query card database: ${e.message}",
+//                batchCard = null,
+//                verifiedCard = null
+//            )
+//        }
+//    }
+
+    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
+        return try {
+            Log.d(TAG, "Making direct API call for card: $cardId")
+
+            // Use the direct API endpoint for enquiry
+            val enquiryRequest = EnquireCardRequest(cardId = cardId)
+            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
+
+            Log.d(TAG, "API Response - found: ${apiResponse.data?.found}")
+            Log.d(TAG, "API Response - batchNumber: ${apiResponse.data?.batchNumber}")
+            Log.d(TAG, "API Response - batchName: ${apiResponse.data?.batchName}")
+            Log.d(TAG, "API Response - message: ${apiResponse.message}")
+
+            // Extract data from the nested structure
+            val cardData = apiResponse.data
+            val cardExists = cardData?.found == true
+            val batchNumber = cardData?.batchNumber
+            val batchName = cardData?.batchName
+
+            Log.d(TAG, "Extracted - cardExists: $cardExists, batchName: '$batchName', batchNumber: $batchNumber")
+
+            // Convert API response to CardEnquiryResult
+            CardRepository.CardEnquiryResult(
+                cardExists = cardExists,
+                batchName = batchName, // Use the full batch name from API: "Batch 10 - Port Stuart Cards"
+                isVerified = cardData?.status == "ACTIVE", // Assuming ACTIVE status means verified
+                message = apiResponse.message,
+                batchCard = null, // API doesn't return full batch card details in enquiry
+                verifiedCard = null // API doesn't return full verified card details in enquiry
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
+            CardRepository.CardEnquiryResult(
+                cardExists = false,
+                batchName = null,
+                isVerified = false,
+                message = "Failed to query card database: ${e.message}",
+                batchCard = null,
+                verifiedCard = null
+            )
+        }
+    }
 
     // ADDED: Comprehensive enquiry method
     private suspend fun performComprehensiveEnquiry(cardId: String): CardRepository.CardEnquiryResult {
@@ -663,7 +847,7 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@MainActivity,
-                        "✅ Card verified in $targetBatch",
+                        "✅ Card found in $targetBatch",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -740,7 +924,7 @@ class MainActivity : ComponentActivity() {
     ): String {
         return buildString {
             // Verification status
-            appendLine("Status: ✅ VERIFIED")
+//            appendLine("Status: ✅ VERIFIED")
             appendLine("Batch: ${verificationResult.batchCard?.batchName ?: "Current"}")
 
             // Card data if available

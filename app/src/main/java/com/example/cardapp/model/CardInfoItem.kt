@@ -106,7 +106,7 @@ fun CardInfoItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 when (cardInfo.verificationStatus) {
-                    "VERIFIED" -> "✅ Verified"
+                    "VERIFIED" -> "✅ Found"
                     "NOT_FOUND" -> "❌ Not Found"
                     "ERROR" -> "⚠️ Error"
                     else -> cardInfo.verificationStatus

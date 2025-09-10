@@ -2,6 +2,7 @@ package com.example.cardapp.repository
 
 import android.util.Log
 import com.example.cardapp.ApiCardRepository
+import com.example.cardapp.EnquireCardResponse
 import com.example.cardapp.model.BatchCard
 import com.example.cardapp.model.SubmitScannedCardsRequest
 import com.example.cardapp.model.SubmitScannedCardsResponse
@@ -55,6 +56,7 @@ class CardRepository(
     data class CardEnquiryResult(
         val cardExists: Boolean,
         val batchName: String?,
+        val batchNumber: Int? = null,
         val isVerified: Boolean,
         val message: String,
         val batchCard: BatchCard? = null,
@@ -292,7 +294,7 @@ class CardRepository(
 
                     return@withContext VerificationResult(
                         isSuccess = true,
-                        message = "Card verified in $targetBatchName",
+                        message = "Card found in $targetBatchName",
                         batchCard = batchCard,
                         verifiedCardId = verifiedId
                     )
@@ -385,30 +387,31 @@ class CardRepository(
                 Log.d(TAG, "Enquiring about card ID via API: $scannedCardId")
 
                 val apiResponse = apiRepository.enquireCard(scannedCardId)
-                val batchName = apiResponse.batchNumber?.let { "Batch $it" }
+                val cardData = apiResponse.data
 
                 CardEnquiryResult(
-                    cardExists = apiResponse.cardExists,
-                    batchName = batchName,
-                    isVerified = apiResponse.isVerified,
+                    cardExists = cardData?.found == true,
+                    batchName = cardData?.batchName,
+                    batchNumber = cardData?.batchNumber,
+                    isVerified = false,
                     message = apiResponse.message,
-                    batchCard = if (apiResponse.cardExists && batchName != null) {
+                    batchCard = if (cardData?.found == true && cardData.batchName != null) {
                         BatchCard(
                             cardId = scannedCardId,
-                            batchName = batchName,
+                            batchName = cardData.batchName,
                             description = "Found via enquiry",
-                            cardOwner = null
+                            cardOwner = cardData.cardHolder?.firstname
                         )
                     } else null,
-                    verifiedCard = if (apiResponse.isVerified) {
-                        verifiedCardDao.getVerifiedCardById(scannedCardId)
-                    } else null
+                    verifiedCard = verifiedCardDao.getVerifiedCardById(scannedCardId)
+
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error during API card enquiry: ${e.message}")
                 CardEnquiryResult(
                     cardExists = false,
                     batchName = null,
+                    batchNumber = null,
                     isVerified = false,
                     message = "❌ ERROR: API enquiry failed - ${e.message}"
                 )

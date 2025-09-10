@@ -13,9 +13,6 @@ interface BatchCardDao {
     @Query("SELECT * FROM batch_cards WHERE batch_name = :batchName ORDER BY created_at ASC")
     suspend fun getCardsByBatch(batchName: String): List<BatchCard>
 
-//    @Query("SELECT * FROM batch_cards WHERE card_id = :cardId")
-//    suspend fun getCardById(cardId: String): BatchCard?
-
     @Query("SELECT * FROM batch_cards WHERE card_id = :cardId LIMIT 1")
     suspend fun getBatchCardById(cardId: String): BatchCard?
 

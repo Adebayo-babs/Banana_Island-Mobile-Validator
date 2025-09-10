@@ -34,7 +34,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,10 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.cardapp.model.CardInfo
 import com.example.cardapp.repository.CardRepository
 import com.example.cardapp.viewmodel.CardReaderViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun EnquiryScreen(
@@ -61,7 +58,6 @@ fun EnquiryScreen(
 
     val availableBatches by viewModel.availableBatches.collectAsState()
     val enquiryResult by viewModel.enquiryResult.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
 
 
     // Listen for enquiry results from the viewModel
@@ -142,7 +138,7 @@ fun EnquiryScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tap any NFC card to search across all batches",
+                        text = "Tap your card to search across all batches",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -152,7 +148,7 @@ fun EnquiryScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "This will automatically search all ${availableBatches.size} available batches to find which batch contains the scanned card.",
+                    text = "This will automatically search all batches to find which batch contains the scanned card.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -239,7 +235,7 @@ fun EnquiryScreen(
     // Result Dialog
     if (showResultDialog && currentResult != null && currentCardId != null) {
         Log.d("EnquiryScreen", "Showing dialog for result: ${currentResult?.message}")
-        EnquiryResultDialogDone(
+        EnquiryResultDialogImproved(
             result = currentResult!!,
             cardId = currentCardId!!,
             onDismiss = {

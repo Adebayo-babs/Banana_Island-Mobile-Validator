@@ -83,12 +83,30 @@ data class EnquireCardRequest(
 )
 
 data class EnquireCardResponse(
-    val cardExists: Boolean,
-    val batchNumber: String? = null,
-    val isVerified: Boolean = false,
+    val status: String,
+    val statusCode: Int,
     val message: String,
-    val scanHistory: List<ScanRecord>? = null
+    val data: CardData?
 )
+
+data class CardData(
+    val cardId: String,
+    val found: Boolean,
+    val batchNumber: Int?,
+    val batchName: String?,
+    val cardHolder: CardHolder?,
+    val status: String?,
+    val deliveryStatus: String?
+)
+
+data class CardHolder(
+    val surname: String,
+    val firstname: String,
+    val middlename: String,
+    val contactLga: String,
+    val stateOfResidence: String
+)
+
 
 data class ScanRecord(
     val timestamp: String,

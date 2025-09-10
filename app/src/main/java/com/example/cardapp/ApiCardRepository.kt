@@ -211,31 +211,6 @@ class ApiCardRepository {
         val isFound: Boolean
     )
 
-    // Keep other existing methods...
-//    suspend fun fetchBatchInfo(batchNumber: String): Batch? {
-//        return try {
-//            Log.d(TAG, "Fetching batch info for batch number: $batchNumber")
-//            val response = api.fetchBatch(mapOf("batchNumber" to batchNumber))
-//            Log.d(TAG, "Batch info response for $batchNumber: ${response.message}")
-//            Log.d(TAG, "Batch has ${response.data?.cardIds?.size ?: 0} card IDs")
-//
-//            response.data
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error fetching batch info for $batchNumber: ${e.message}")
-//            e.printStackTrace()
-//            null
-//        }
-//    }
-
-//    suspend fun getBatchCardIds(batchNumber: String): List<String> {
-//        return try {
-//            val batchData = fetchBatchWithCache(batchNumber)
-//            batchData?.cardIds ?: emptyList()
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error getting card IDs for batch $batchNumber: ${e.message}")
-//            emptyList()
-//        }
-//    }
 
     suspend fun getBatchCompletion(batchNumber: Int): BatchCompletionStats? {
         return try {
@@ -280,18 +255,24 @@ class ApiCardRepository {
     suspend fun enquireCard(cardId: String): EnquireCardResponse {
         return try {
             Log.d(TAG, "Enquiring about card: $cardId")
+
             val request = EnquireCardRequest(cardId = cardId)
-
             val response = api.enquireCard(request)
-            Log.d(TAG, "Enquiry response: Exists=${response.cardExists}, Message=${response.message}")
+            val cardData = response.data
 
+            if (cardData?.found == true) {
+                Log.d(TAG, "✅ Card FOUND - Batch: ${cardData.batchName}, Number: ${cardData.batchNumber}")
+            } else {
+                Log.d(TAG, "❌ Card NOT FOUND in system")
+            }
             response
         } catch (e: Exception) {
             Log.e(TAG, "Error enquiring card $cardId: ${e.message}")
-            e.printStackTrace()
             EnquireCardResponse(
-                cardExists = false,
-                message = "API Error: ${e.message}"
+                status = "error",
+                statusCode = 500,
+                message = "API Error: ${e.message}",
+                data = null
             )
         }
     }
