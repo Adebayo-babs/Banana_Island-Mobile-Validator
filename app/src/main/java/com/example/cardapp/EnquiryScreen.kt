@@ -1,6 +1,7 @@
 package com.example.cardapp
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,11 @@ fun EnquiryScreen(
     onBackClick: () -> Unit,
     viewModel: CardReaderViewModel = viewModel { CardReaderViewModel.instance }
 ) {
+
+    BackHandler {
+        onBackClick()
+    }
+
     var enquiryHistory by remember { mutableStateOf<List<EnquiryHistoryItem>>(emptyList()) }
     val isSearching by viewModel.isEnquirySearching.collectAsState()
     var showResultDialog by remember { mutableStateOf(false) }

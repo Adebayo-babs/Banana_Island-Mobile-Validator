@@ -4,6 +4,7 @@ package com.example.cardapp
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.items
@@ -18,11 +19,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -57,9 +60,13 @@ import java.text.SimpleDateFormat
 @SuppressLint("DefaultLocale")
 @Composable
 fun CardReaderScreen(
-    onEnquiryClick: () -> Unit = {},
+    onBackClick: () -> Unit = {},
     viewModel: CardReaderViewModel = viewModel { CardReaderViewModel.instance }
 ) {
+
+    BackHandler {
+        onBackClick()
+    }
 
     val cards by viewModel.cards.collectAsState()
     val selectedBatch by viewModel.selectedBatch.collectAsState()
@@ -150,9 +157,12 @@ fun CardReaderScreen(
         // Header with Enquiry Button
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+//            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
             Text(
                 text = "Card Batch Verification",
                 fontSize = 15.sp,
@@ -160,11 +170,11 @@ fun CardReaderScreen(
             )
 
             // New Enquiry button
-            OutlinedButton(
-                onClick = onEnquiryClick
-            ) {
-                Text("Enquiry")
-            }
+//            OutlinedButton(
+//                onClick = onEnquiryClick
+//            ) {
+//                Text("Enquiry")
+//            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

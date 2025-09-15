@@ -44,6 +44,14 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
     }
 
+    // Navigation States
+    private enum class Screen {
+        SPLASH,
+        MAIN_MENU,
+        CARD_READER,
+        ENQUIRY
+    }
+
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
@@ -51,6 +59,9 @@ class MainActivity : ComponentActivity() {
     private val cardDataReader = OptimizedCardDataReader()
     private var isEnquiryMode by mutableStateOf(false)
 //    private var isTestMode by mutableStateOf(true)
+
+    // Navigation state
+    private var currentScreen by mutableStateOf(Screen.SPLASH)
 
 //    Database and repository
     private lateinit var cardRepository: CardRepository
@@ -81,24 +92,63 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    when (currentScreen) {
+                        Screen.SPLASH -> {
+                            SplashScreen (
+                                onNavigateToMain = {
+                                    currentScreen = Screen.MAIN_MENU
+                                }
+                            )
+                        }
 
-                    if (showEnquiryScreen) {
-                        // Set enquiry mode when showing enquiry screen
-                        isEnquiryMode = true
-                        EnquiryScreen(
-                            onBackClick = {
-                                showEnquiryScreen = false
-                                isEnquiryMode = false
-                            }
-                        )
-                    } else {
-                        isEnquiryMode = false
-                        CardReaderScreen(
-                            onEnquiryClick = {
-                                showEnquiryScreen = true
-                            }
-                        )
+                        Screen.MAIN_MENU -> {
+                            MainMenuScreen(
+                                onBatchScanningClick = {
+                                    isEnquiryMode = false
+                                    currentScreen = Screen.CARD_READER
+                                },
+                                onEnquiryClick = {
+                                    isEnquiryMode = true
+                                    currentScreen = Screen.ENQUIRY
+                                }
+                            )
+                        }
+
+                        Screen.CARD_READER -> {
+                            CardReaderScreen(
+                                onBackClick = {
+                                    currentScreen = Screen.MAIN_MENU
+                                }
+                            )
+                        }
+
+                        Screen.ENQUIRY -> {
+                            EnquiryScreen(
+                                onBackClick = {
+                                    isEnquiryMode = false
+                                    currentScreen = Screen.MAIN_MENU
+                                }
+                            )
+                        }
                     }
+
+//                    if (showEnquiryScreen) {
+//                        // Set enquiry mode when showing enquiry screen
+//                        isEnquiryMode = true
+//                        EnquiryScreen(
+//                            onBackClick = {
+//                                showEnquiryScreen = false
+//                                isEnquiryMode = false
+//                            }
+//                        )
+//                    } else {
+//                        isEnquiryMode = false
+//                        CardReaderScreen(
+//                            onEnquiryClick = {
+//                                showEnquiryScreen = true
+//                            }
+//                        )
+//                    }
                 }
             }
         }
@@ -380,147 +430,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
-//        return try {
-//            Log.d(TAG, "Making direct API call for card: $cardId")
-//
-//            // Use the direct API endpoint for enquiry
-//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
-//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
-//
-//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
-//
-//            // Convert API response to CardEnquiryResult
-//            CardRepository.CardEnquiryResult(
-//                cardExists = apiResponse.cardExists,
-//                batchName = apiResponse.batchNumber?.let { "Batch ${it.padStart(3, '0')}" },
-//                isVerified = apiResponse.isVerified,
-//                message = apiResponse.message,
-//                batchCard = null, // API doesn't return full batch card details in enquiry
-//                verifiedCard = null // API doesn't return full verified card details in enquiry
-//            )
-//
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
-//            CardRepository.CardEnquiryResult(
-//                cardExists = false,
-//                batchName = null,
-//                isVerified = false,
-//                message = "Failed to query card database: ${e.message}",
-//                batchCard = null,
-//                verifiedCard = null
-//            )
-//        }
-//    }
-
-//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
-//        return try {
-//            Log.d(TAG, "Making direct API call for card: $cardId")
-//
-//            // Use the direct API endpoint for enquiry
-//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
-//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
-//
-//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
-//            Log.d(TAG, "API Response - message: ${apiResponse.message}")
-//
-//            // Determine if card exists based on multiple indicators
-//            val cardExists = apiResponse.cardExists ||
-//                    apiResponse.batchNumber != null ||
-//                    apiResponse.message.contains("successfully", ignoreCase = true)
-//
-//            // Format batch name properly if found
-//            val formattedBatchName = apiResponse.batchNumber?.let { batchNum ->
-//                when {
-//                    batchNum.startsWith("Batch", ignoreCase = true) -> batchNum
-//                    batchNum.length <= 3 -> "Batch ${batchNum.padStart(3, '0')}"
-//                    else -> "Batch $batchNum"
-//                }
-//            }
-//
-//            // Convert API response to CardEnquiryResult with proper field mapping
-//            CardRepository.CardEnquiryResult(
-//                cardExists = cardExists,
-//                batchName = formattedBatchName,
-//                isVerified = apiResponse.isVerified,
-//                message = apiResponse.message,
-//                batchCard = null, // API doesn't return full batch card details in enquiry
-//                verifiedCard = null // API doesn't return full verified card details in enquiry
-//            )
-//
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
-//            CardRepository.CardEnquiryResult(
-//                cardExists = false,
-//                batchName = null,
-//                isVerified = false,
-//                message = "Failed to query card database: ${e.message}",
-//                batchCard = null,
-//                verifiedCard = null
-//            )
-//        }
-//    }
-
-
-//    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
-//        return try {
-//            Log.d(TAG, "Making direct API call for card: $cardId")
-//
-//            // Use the direct API endpoint for enquiry
-//            val enquiryRequest = EnquireCardRequest(cardId = cardId)
-//            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
-//
-//            Log.d(TAG, "API Response - cardExists: ${apiResponse.cardExists}, batch: ${apiResponse.batchNumber}")
-//            Log.d(TAG, "API Response - message: ${apiResponse.message}")
-//
-//            // Determine if card exists based on multiple indicators
-//            val cardExists = apiResponse.cardExists ||
-//                    apiResponse.batchNumber != null ||
-//                    apiResponse.message.contains("successfully", ignoreCase = true)
-//
-//            // Format batch name to include both name and number for display
-//            val formattedBatchName = apiResponse.batchNumber?.let { batchNum ->
-//                // Clean the batch number string
-//                val cleanBatchNum = batchNum.trim()
-//
-//                when {
-//                    // If it already contains "Batch", use as is
-//                    cleanBatchNum.startsWith("Batch", ignoreCase = true) -> cleanBatchNum
-//                    // If it's just a number, format it properly
-//                    cleanBatchNum.matches(Regex("""\d+""")) -> {
-//                        val paddedNum = cleanBatchNum.padStart(3, '0')
-//                        "Batch $paddedNum"
-//                    }
-//                    // For other formats, prepend "Batch"
-//                    else -> "Batch $cleanBatchNum"
-//                }
-//            }
-//
-//            Log.d(TAG, "Formatted batch name: $formattedBatchName")
-//
-//            // Convert API response to CardEnquiryResult with proper field mapping
-//            CardRepository.CardEnquiryResult(
-//                cardExists = cardExists,
-//                batchName = formattedBatchName,
-//                isVerified = apiResponse.isVerified,
-//                message = apiResponse.message,
-//                batchCard = null, // API doesn't return full batch card details in enquiry
-//                verifiedCard = null // API doesn't return full verified card details in enquiry
-//            )
-//
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
-//            CardRepository.CardEnquiryResult(
-//                cardExists = false,
-//                batchName = null,
-//                isVerified = false,
-//                message = "Failed to query card database: ${e.message}",
-//                batchCard = null,
-//                verifiedCard = null
-//            )
-//        }
-//    }
 
     private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
         return try {
