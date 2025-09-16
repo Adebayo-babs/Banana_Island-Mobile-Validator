@@ -7,8 +7,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -157,7 +160,6 @@ fun CardReaderScreen(
         // Header with Enquiry Button
         Row(
             modifier = Modifier.fillMaxWidth(),
-//            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
@@ -168,16 +170,9 @@ fun CardReaderScreen(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
-
-            // New Enquiry button
-//            OutlinedButton(
-//                onClick = onEnquiryClick
-//            ) {
-//                Text("Enquiry")
-//            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         //Updated Batch Selected with Search Button
         Card(
@@ -187,14 +182,14 @@ fun CardReaderScreen(
             )
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
                 Text(
                     text = "Enter Batch Number",
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 // Batch Number Input with Search Button
@@ -206,8 +201,8 @@ fun CardReaderScreen(
                     OutlinedTextField(
                         value = batchNumberInput,
                         onValueChange = validateBatchInput,
-                        label = { Text("Batch Number") },
-                        placeholder = { Text("Enter batch number...") },
+                        label = { Text("Batch Number", fontSize = 12.sp) },
+                        placeholder = { Text("Enter batch number...", fontSize = 12.sp) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = !isValidBatchNumber,
                         supportingText = {
@@ -216,7 +211,7 @@ fun CardReaderScreen(
                                     Text(
                                         text = "Please enter a valid batch number (1-50)",
                                         color = MaterialTheme.colorScheme.error,
-                                        fontSize = 12.sp
+                                        fontSize = 11.sp
                                     )
                                 }
                                 batchFetched -> {
@@ -227,76 +222,38 @@ fun CardReaderScreen(
                                     Text(
                                         text = "Batch $normalizedBatch fetched successfully",
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontSize = 15.sp
+                                        fontSize = 12.sp
                                     )
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        textStyle = TextStyle(fontSize = 14.sp)
                     )
 
                     // Search Button
                     OutlinedButton(
                         onClick = searchBatch,
                         enabled = batchNumberInput.isNotEmpty() && isValidBatchNumber && !isSearching,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        if (isSearching) {
-                            Text("Searching...")
-                        } else {
-                            Text("Search")
-                        }
+                        Text(
+                            text = if (isSearching) "..." else "Search",
+                            fontSize = 12.sp
+                        )
                     }
                 }
 
                 // Show loading indicator when searching
                 if (isSearching) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-
-                // Batch Info
-//                if (selectedBatch.isNotEmpty() && isValidBatchNumber) {
-//                    Spacer(modifier = Modifier.height(8.dp))
-//
-//                    val batchStats by viewModel.batchStats.collectAsState()
-//
-//                    if (batchStats.totalCards > 0) {
-//                        LinearProgressIndicator(
-//                            progress = { (batchStats.verifiedCards.toFloat() / batchStats.totalCards) },
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .padding(top = 4.dp),
-//                        )
-//                        Text(
-//                            text = "${
-//                                String.format(
-//                                    "%.1f",
-//                                    batchStats.completionPercentage
-//                                )
-//                            }% Complete",
-//                            fontSize = 12.sp,
-//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-//                            modifier = Modifier.padding(top = 2.dp)
-//                        )
-//
-//                        Row(
-//                            modifier = Modifier.fillMaxWidth(),
-//                            horizontalArrangement = Arrangement.End
-//                        ) {
-//                            OutlinedButton(
-//                                onClick = { viewModel.resetCurrentBatch() },
-//                                modifier = Modifier.padding(top = 8.dp)
-//                            ) {
-//                                Text("Reset Batch")
-//                            }
-//                        }
-//                    }
-//                }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Header row with count and clear button
             Row(
@@ -307,7 +264,7 @@ fun CardReaderScreen(
                 Column {
                     Text(
                         text = "Scanned Cards (${cards.size})",
-                        fontSize = 18.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     if (cards.isNotEmpty()) {
@@ -315,19 +272,63 @@ fun CardReaderScreen(
 //                        val notFoundCount = cards.count { it.verificationStatus == "NOT_FOUND" }
 //                        ❌ $notFoundCount not found
 
-                        Text(
-//                            $verifiedCount verified
-                                text = "✅ ",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+//                        Text(
+////                            $verifiedCount verified
+//                                text = "✅ ",
+//                            fontSize = 12.sp,
+//                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//                        )
                     }
                 }
                 if (cards.isNotEmpty()) {
                     OutlinedButton(
-                        onClick = { viewModel.clearCards() }
+                        onClick = { viewModel.clearCards() },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text("Clear All")
+                    }
+                }
+            }
+
+
+
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Cards list
+            Box(modifier = Modifier.weight(1f)) {
+                if (cards.isEmpty()) {
+                    EmptyStateCard(selectedBatch = selectedBatch)
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(
+                            items = cards.reversed(), // Show most recent first
+                            key = { cardInfo -> "${cardInfo.id}_${cardInfo.timestamp}" }
+                        ) { cardInfo ->
+                            CardInfoItem(
+                                cardInfo = cardInfo,
+                                dateFormatter = dateFormatter,
+                                onRemove = { viewModel.removeCard(cardInfo) },
+                                onEnquiry = { card ->
+                                    // Perform enquiry when button is clicked
+                                    coroutineScope.launch {
+                                        try {
+                                            enquiryResult = viewModel.performEnquiry(card.id)
+                                            enquiryDialogCard = card
+                                        } catch (e: Exception) {
+                                            Toast.makeText(
+                                                context,
+                                                "Enquiry failed: ${e.message}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -341,46 +342,11 @@ fun CardReaderScreen(
                     viewModel.clearCards()
                     viewModel.setSelectedBatch("")
                     batchNumberInput = ""
+                    batchFetched = false
+                    fetchedBatchInfo = ""
                 }
             )
 
-
-//            Spacer(modifier = Modifier.height(8.dp))
-
-            // Cards list
-            if (cards.isEmpty()) {
-                EmptyStateCard(selectedBatch = selectedBatch)
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(
-                        items = cards.reversed(), // Show most recent first
-                        key = { cardInfo -> "${cardInfo.id}_${cardInfo.timestamp}" }
-                    ) { cardInfo ->
-                        CardInfoItem(
-                            cardInfo = cardInfo,
-                            dateFormatter = dateFormatter,
-                            onRemove = { viewModel.removeCard(cardInfo) },
-                            onEnquiry = { card ->
-                                // Perform enquiry when button is clicked
-                                coroutineScope.launch {
-                                    try {
-                                        enquiryResult = viewModel.performEnquiry(card.id)
-                                        enquiryDialogCard = card
-                                    } catch (e: Exception) {
-                                        Toast.makeText(
-                                            context,
-                                            "Enquiry failed: ${e.message}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-            }
         }
 
         NotFoundDialog(

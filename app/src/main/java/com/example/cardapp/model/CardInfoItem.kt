@@ -50,7 +50,7 @@ fun CardInfoItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(10.dp)
         ) {
             // Header row with card ID and actions
             Row(
@@ -61,7 +61,7 @@ fun CardInfoItem(
                 Text(
                     text = cardInfo.id,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     color = when (cardInfo.verificationStatus) {
                         "VERIFIED" -> MaterialTheme.colorScheme.primary
                         "NOT_FOUND", "ERROR" -> MaterialTheme.colorScheme.error
@@ -72,38 +72,24 @@ fun CardInfoItem(
                 Row {
                     // Individual remove button (X)
                     IconButton(
-                        onClick = onRemove, // Now removes only this card
-                        modifier = Modifier.size(34.dp)
+                        onClick = onRemove,
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Icon(
                             Icons.Filled.Close,
                             contentDescription = "Remove this card",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-
-                    // Enquiry button
-//                    if (cardInfo.verificationStatus != "ERROR") {
-//                        IconButton(
-//                            onClick = { onEnquiry(cardInfo) },
-//                            modifier = Modifier.size(24.dp)
-//                        ) {
-//                            Icon(
-//                                Icons.Filled.Search,
-//                                contentDescription = "Enquire about this card",
-//                                tint = MaterialTheme.colorScheme.secondary,
-//                                modifier = Modifier.size(16.dp)
-//                            )
-//                        }
-//                    }
                 }
             }
 
             // Status and timestamp
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 when (cardInfo.verificationStatus) {
                     "VERIFIED" -> "✅ Found"
@@ -127,11 +113,12 @@ fun CardInfoItem(
 
             // Additional info
             if (cardInfo.additionalInfo.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = cardInfo.additionalInfo,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 2
                 )
             }
         }
