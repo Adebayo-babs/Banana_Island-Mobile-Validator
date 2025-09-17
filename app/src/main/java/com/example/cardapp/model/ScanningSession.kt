@@ -1,5 +1,7 @@
 package com.example.cardapp.model
 
+import android.util.Log
+
 // Updated API data classes to match the actual endpoint
 data class SubmitScannedCardsRequest(
     val batchNumber: Int,
@@ -41,6 +43,38 @@ data class ScanningSession(
 ) {
     fun addScannedCard(cardId: String, scanTime: String) {
         scannedCards.add(SubmittedCardData(cardId, scanTime))
+    }
+
+//    fun removeScannedCard(cardId: String) {
+//        scannedCards.find { it.cardId.equals(cardId, ignoreCase = true)}
+//    }
+
+    fun removeScannedCard(cardId: String) {
+        Log.d("ScanningSession", "=== REMOVE FROM SESSION DEBUG ===")
+        Log.d("ScanningSession", "Attempting to remove card: $cardId")
+        Log.d("ScanningSession", "Session size before: ${scannedCards.size}")
+        Log.d("ScanningSession", "All cards in session: ${scannedCards.map { it.cardId }}")
+
+        val initialSize = scannedCards.size
+
+        // Find the specific card to remove
+        val cardToRemove = scannedCards.find { it.cardId.equals(cardId, ignoreCase = true) }
+
+        if (cardToRemove != null) {
+            Log.d("ScanningSession", "Found matching card: ${cardToRemove.cardId}")
+            val removed = scannedCards.remove(cardToRemove)
+            Log.d("ScanningSession", "Removal successful: $removed")
+            Log.d("ScanningSession", "Session size after: ${scannedCards.size}")
+            Log.d("ScanningSession", "Cards remaining: ${scannedCards.map { it.cardId }}")
+        } else {
+            Log.w("ScanningSession", "Card $cardId not found in session")
+            Log.d("ScanningSession", "Available cards for comparison:")
+            scannedCards.forEachIndexed { index, card ->
+                Log.d("ScanningSession", "  [$index] '${card.cardId}' (equals check: ${card.cardId.equals(cardId, ignoreCase = true)})")
+            }
+        }
+
+        Log.d("ScanningSession", "=== END REMOVE FROM SESSION DEBUG ===")
     }
 
     fun createSubmissionRequest(endTime: String, notes: String? = null): SubmitScannedCardsRequest {

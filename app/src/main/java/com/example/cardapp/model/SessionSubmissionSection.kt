@@ -2,16 +2,12 @@ package com.example.cardapp.model
 
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,7 +31,8 @@ import kotlinx.coroutines.launch
 fun SessionSubmissionSection(
     viewModel: CardReaderViewModel,
     modifier: Modifier = Modifier,
-    onSubmissionSuccess: () -> Unit = {}
+    onSubmissionSuccess: () -> Unit = {},
+    currentCardCount: Int = 0
 ) {
 
     val sessionStatsData = viewModel.getCurrentSessionStats()
@@ -46,10 +43,10 @@ fun SessionSubmissionSection(
     var isSubmitting by remember { mutableStateOf(false) }
     var submissionResult by remember { mutableStateOf<SubmitScannedCardsResponse?>(null) }
 
-    if (sessionStatsData.sessionActive && sessionStatsData.totalScanned > 0) {
+    if (sessionStatsData.sessionActive && currentCardCount > 0) {
         Button(
             onClick = { showSubmissionDialog = true },
-            enabled = sessionStatsData.totalScanned > 0 && !isSubmitting,
+            enabled = currentCardCount > 0 && !isSubmitting,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
@@ -74,7 +71,7 @@ fun SessionSubmissionSection(
                     // Normal submit form
                     Column {
                         Text(
-                            text = "You are about to submit ${sessionStatsData.totalScanned} verified cards to the API.",
+                            text = "You are about to submit $currentCardCount cards to the API.",
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         OutlinedTextField(

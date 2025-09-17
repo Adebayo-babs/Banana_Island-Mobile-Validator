@@ -235,14 +235,57 @@ class CardReaderViewModel : ViewModel() {
         _cards.value = emptyList()
     }
 
+//    fun removeCard(cardInfo: CardInfo) {
+//        viewModelScope.launch {
+//            try {
+//                val currentCards = _cards.value.toMutableList()
+//                currentCards.remove(cardInfo)
+//                _cards.value = currentCards
+//
+//                _currentSession.value?.let { session ->
+//                    session.removeScannedCard(cardInfo.id)
+//                    Log.d(TAG, "Removed card from session: ${cardInfo.id}")
+//
+//                }
+//
+//                Log.d(TAG, "Removed card: ${cardInfo.id}")
+//
+//                updateBatchStatsIfNeeded()
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error removing card: ${e.message}")
+//            }
+//        }
+//    }
+
     fun removeCard(cardInfo: CardInfo) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "=== REMOVING CARD DEBUG ===")
+                Log.d(TAG, "Card to remove: ${cardInfo.id}")
+                Log.d(TAG, "Card isVerified: ${cardInfo.isVerified}")
+                Log.d(TAG, "Card verificationStatus: ${cardInfo.verificationStatus}")
+
+                // Log current session state BEFORE removal
+                _currentSession.value?.let { session ->
+                    Log.d(TAG, "Session cards BEFORE removal: ${session.scannedCards.size}")
+                    Log.d(TAG, "Session card IDs: ${session.scannedCards.map { it.cardId }}")
+                }
+
                 val currentCards = _cards.value.toMutableList()
                 currentCards.remove(cardInfo)
                 _cards.value = currentCards
 
-                Log.d(TAG, "Removed card: ${cardInfo.id}")
+                // Always try to remove from session
+                _currentSession.value?.let { session ->
+                    session.removeScannedCard(cardInfo.id)
+
+                    // Log session state AFTER removal
+                    Log.d(TAG, "Session cards AFTER removal: ${session.scannedCards.size}")
+                    Log.d(TAG, "Session card IDs: ${session.scannedCards.map { it.cardId }}")
+                }
+
+                Log.d(TAG, "UI cards remaining: ${_cards.value.size}")
+                Log.d(TAG, "=== END REMOVE CARD DEBUG ===")
 
                 updateBatchStatsIfNeeded()
             } catch (e: Exception) {
@@ -250,6 +293,7 @@ class CardReaderViewModel : ViewModel() {
             }
         }
     }
+
 
     // NEW: Method to clear everything after successful submission
     fun clearSessionAfterSubmission() {
@@ -545,12 +589,23 @@ class CardReaderViewModel : ViewModel() {
         val session = _currentSession.value ?: return null
 
         return try {
+
+            Log.d(TAG, "=== SUBMISSION DEBUG ===")
+            Log.d(TAG, "Cards in UI list: ${_cards.value.size}")
+            Log.d(TAG, "UI card IDs: ${_cards.value.map { "${it.id} (verified: ${it.isVerified}, status: ${it.verificationStatus})" }}")
+            Log.d(TAG, "Cards in session: ${session.scannedCards.size}")
+            Log.d(TAG, "Session card IDs: ${session.scannedCards.map { it.cardId }}")
+
             val endTime = Instant.now().atOffset(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ISO_INSTANT)
 
             val request = session.createSubmissionRequest(endTime, notes)
 
             Log.d(TAG, "Submitting session with ${request.scannedCards.size} cards")
+
+            Log.d(TAG, "Request will submit ${request.scannedCards.size} cards")
+            Log.d(TAG, "Request card IDs: ${request.scannedCards.map { it.cardId }}")
+            Log.d(TAG, "=== END SUBMISSION DEBUG ===")
 
             val response = repository?.submitScannedCards(request)
 

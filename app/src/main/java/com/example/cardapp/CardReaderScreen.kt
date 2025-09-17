@@ -337,6 +337,7 @@ fun CardReaderScreen(
             SessionSubmissionSection(
                 viewModel = viewModel,
                 modifier = Modifier.padding(bottom = 8.dp),
+                currentCardCount = cards.size,
                 onSubmissionSuccess = {
                     // Clear all after successful submission
                     viewModel.clearCards()

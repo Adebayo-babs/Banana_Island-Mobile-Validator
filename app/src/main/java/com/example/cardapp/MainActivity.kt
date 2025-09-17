@@ -2,9 +2,11 @@ package com.example.cardapp
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.ToneGenerator
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -77,7 +79,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         try {
-            toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 1000)
+            toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 1000)
         } catch (e: Exception) {
             Log.e(TAG, "Could not initialize tone generator: ${e.message}")
         }
@@ -739,6 +741,10 @@ class MainActivity : ComponentActivity() {
                 // SUCCESS - Card found in the correct batch
                 Log.d(TAG, "✅ VERIFICATION SUCCESS!")
 
+
+                // Play success sound
+                playSuccessSound(this)
+
                 val cardInfo = CardInfo(
                     id = cardData.cardId!!,
                     timestamp = System.currentTimeMillis(),
@@ -791,6 +797,19 @@ class MainActivity : ComponentActivity() {
                     message = "Verification error: ${e.message}"
                 )
             }
+        }
+    }
+
+    private fun playSuccessSound(context: Context) {
+//        val mediaPlayer = MediaPlayer.create(context, R.raw.success)
+//        mediaPlayer.start()
+//        mediaPlayer.setOnCompletionListener { mp ->
+//            mp.release()
+//        }
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 2000)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not play success sound: ${e.message}")
         }
     }
 
