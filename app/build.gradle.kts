@@ -45,6 +45,10 @@ android {
 
 dependencies {
 
+    //Lottie
+    implementation(libs.lottie.compose)
+
+
     implementation(libs.androidx.foundation.layout.android)
     implementation(libs.androidx.foundation.layout.android)
     coreLibraryDesugaring (libs.desugar.jdk.libs)

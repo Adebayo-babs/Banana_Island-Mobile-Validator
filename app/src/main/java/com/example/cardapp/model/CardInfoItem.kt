@@ -12,20 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +45,7 @@ fun CardInfoItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier.padding(8.dp)
         ) {
             // Header row with card ID and actions
             Row(
@@ -61,7 +56,7 @@ fun CardInfoItem(
                 Text(
                     text = cardInfo.id,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = when (cardInfo.verificationStatus) {
                         "VERIFIED" -> MaterialTheme.colorScheme.primary
                         "NOT_FOUND", "ERROR" -> MaterialTheme.colorScheme.error
@@ -69,56 +64,57 @@ fun CardInfoItem(
                     }
                 )
 
-                Row {
-                    // Individual remove button (X)
-                    IconButton(
-                        onClick = onRemove,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = "Remove this card",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                // Individual remove button (X) - made smaller
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Remove this card",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
 
-            // Status and timestamp
+            // Status and timestamp - made more compact
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                when (cardInfo.verificationStatus) {
+                val statusText = when (cardInfo.verificationStatus) {
                     "VERIFIED" -> "✅ Found"
                     "NOT_FOUND" -> "❌ Not Found"
                     "ERROR" -> "⚠️ Error"
                     else -> cardInfo.verificationStatus
-                }?.let {
+                }
+
+                if (statusText != null) {
                     Text(
-                        text = it,
-                        fontSize = 12.sp,
+                        text = statusText,
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
 
                 Text(
                     text = dateFormatter.format(cardInfo.timestamp),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
 
-            // Additional info
+            // Additional info - only show if present and keep compact
             if (cardInfo.additionalInfo.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = cardInfo.additionalInfo,
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 2
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }
@@ -134,7 +130,7 @@ fun EmptyStateCard(selectedBatch: String = "") {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(48.dp),
+                .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -142,10 +138,18 @@ fun EmptyStateCard(selectedBatch: String = "") {
             ) {
                 Text(
                     text = "📱",
-                    fontSize = 48.sp
+                    fontSize = 36.sp
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (selectedBatch.isNotEmpty()) {
+                        "Ready to scan cards"
+                    } else {
+                        "Select a batch to start scanning"
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
             }
         }
     }

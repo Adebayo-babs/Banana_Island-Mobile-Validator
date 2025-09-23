@@ -43,8 +43,8 @@ fun MainMenuScreen(
     ) {
         // App Title
         Text(
-            text = "Card App",
-            fontSize = 32.sp,
+            text = "LASRRA CARD SCANNER",
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center

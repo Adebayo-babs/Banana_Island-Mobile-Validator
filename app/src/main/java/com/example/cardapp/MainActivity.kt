@@ -743,7 +743,7 @@ class MainActivity : ComponentActivity() {
 
 
                 // Play success sound
-                playSuccessSound(this)
+//                playSuccessSound(this)
 
                 val cardInfo = CardInfo(
                     id = cardData.cardId!!,
