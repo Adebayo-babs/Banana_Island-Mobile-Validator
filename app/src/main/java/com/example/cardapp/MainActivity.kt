@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
         SPLASH,
         MAIN_MENU,
         CARD_READER,
-        ENQUIRY
+        QR_SCANNER
     }
 
     private var nfcAdapter: NfcAdapter? = null
@@ -59,30 +59,41 @@ class MainActivity : ComponentActivity() {
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var techListsArray: Array<Array<String>>? = null
     private val cardDataReader = OptimizedCardDataReader()
-    private var isEnquiryMode by mutableStateOf(false)
-//    private var isTestMode by mutableStateOf(true)
+
+    // State variables for Card Verification
+    private var showVerificationDialog by mutableStateOf(false)
+    private var verificationResponse by mutableStateOf<CardVerificationResponse?>(null)
+    private var verificationCardId by mutableStateOf("")
+
+    // State variables for QR Verification
+    private var showQRVerificationDialog by mutableStateOf(false)
+    private var qrVerificationResponse by mutableStateOf<VerifyQRResponse?>(null)
+    private var qrVerificationData by mutableStateOf("")
+
+    // Track which screen is active for NFC
+    private var isCardReaderActive by mutableStateOf(false)
+    private var isMainMenuActive by mutableStateOf(false)
 
     // Navigation state
     private var currentScreen by mutableStateOf(Screen.SPLASH)
 
-//    Database and repository
+    // Store last scanned card ID for main menu display
+    private var lastScannedCardId by mutableStateOf<String?>(null)
+
+    // Store last scanned QR code for main menu display
+    private var lastScannedQRCode by mutableStateOf<String?>(null)
+
+    // Database and repository
     private lateinit var cardRepository: CardRepository
 
     // Track active reading job to prevent overlapping reads
     private var readingJob: Job? = null
 
     private var toneGenerator: ToneGenerator? = null
-    private var showEnquiryScreen by mutableStateOf(false)
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        try {
-            toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 1000)
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not initialize tone generator: ${e.message}")
-        }
 
         setupNFC()
         setupDatabase()
@@ -99,19 +110,19 @@ class MainActivity : ComponentActivity() {
                             SplashScreen (
                                 onNavigateToMain = {
                                     currentScreen = Screen.MAIN_MENU
+                                    isMainMenuActive = true
+                                    isCardReaderActive = false
                                 }
                             )
                         }
 
                         Screen.MAIN_MENU -> {
                             MainMenuScreen(
-                                onBatchScanningClick = {
-                                    isEnquiryMode = false
-                                    currentScreen = Screen.CARD_READER
-                                },
-                                onEnquiryClick = {
-                                    isEnquiryMode = true
-                                    currentScreen = Screen.ENQUIRY
+                                lastScannedCardId = lastScannedCardId,
+                                onQRScannerClick = {
+                                    isCardReaderActive = false
+                                    isMainMenuActive = false
+                                    currentScreen = Screen.QR_SCANNER
                                 }
                             )
                         }
@@ -119,43 +130,98 @@ class MainActivity : ComponentActivity() {
                         Screen.CARD_READER -> {
                             CardReaderScreen(
                                 onBackClick = {
+                                    isCardReaderActive = false
+                                    isMainMenuActive = true
                                     currentScreen = Screen.MAIN_MENU
+
                                 }
                             )
                         }
 
-                        Screen.ENQUIRY -> {
-                            EnquiryScreen(
+                        Screen.QR_SCANNER -> {
+                            QRScannerScreen(
                                 onBackClick = {
-                                    isEnquiryMode = false
+                                    isCardReaderActive = false
+                                    isMainMenuActive = true
                                     currentScreen = Screen.MAIN_MENU
+                                },
+                                onQRCodeScanned = { qrCode ->
+                                    processQRCode(qrCode)
+                                   // Toast.makeText(this, "QR Code: $qrCode", Toast.LENGTH_LONG).show()
                                 }
                             )
                         }
                     }
 
-//                    if (showEnquiryScreen) {
-//                        // Set enquiry mode when showing enquiry screen
-//                        isEnquiryMode = true
-//                        EnquiryScreen(
-//                            onBackClick = {
-//                                showEnquiryScreen = false
-//                                isEnquiryMode = false
-//                            }
-//                        )
-//                    } else {
-//                        isEnquiryMode = false
-//                        CardReaderScreen(
-//                            onEnquiryClick = {
-//                                showEnquiryScreen = true
-//                            }
-//                        )
-//                    }
+                    // Show card verification dialog when needed
+                    if (showVerificationDialog && verificationResponse != null) {
+                        CardVerificationDialog(
+                            cardId = verificationCardId,
+                            success = verificationResponse!!.success,
+                            message = verificationResponse!!.message,
+                            additionalData = verificationResponse!!.data,
+                            onDismiss = {
+                                showVerificationDialog = false
+                                verificationResponse = null
+                                verificationCardId = ""
+                            }
+                        )
+                    }
+
+                    // Show QR verification dialog when needed
+                    if (showQRVerificationDialog && qrVerificationResponse != null) {
+                        QRVerificationDialog(
+                            qrData = qrVerificationData,
+                            success = qrVerificationResponse!!.success,
+                            message = qrVerificationResponse!!.message,
+                            additionalData = qrVerificationResponse!!.data,
+                            onDismiss = {
+                                showQRVerificationDialog = false
+                                qrVerificationResponse = null
+                                qrVerificationData = ""
+                            }
+                        )
+                    }
                 }
             }
         }
         // Handle NFC intent if app was launched by NFC
         handleIntent(intent)
+    }
+
+    private fun processQRCode(qrCode: String) {
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Processing QR Code: $qrCode")
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Verifying QR code...", Toast.LENGTH_SHORT).show()
+                }
+
+                // Call API to verify QR code
+                val apiResponse = ApiService.verifyQRCode(qrCode)
+
+                withContext(Dispatchers.Main) {
+                    // Store response and show dialog
+                    qrVerificationData = qrCode
+                    val isIllegal = apiResponse.data?.get("isIllegal") as? Boolean ?: true
+                    qrVerificationResponse = apiResponse.copy(
+                        success = !isIllegal
+                    )
+                    showQRVerificationDialog = true
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing QR code: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun setupNFC() {
@@ -194,53 +260,6 @@ class MainActivity : ComponentActivity() {
         CardReaderViewModel.instance.updateAvailableBatches(batches)
 
         CardReaderViewModel.instance.setRepository(cardRepository)
-
-        lifecycleScope.launch {
-            try {
-                // Show loading message
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Connecting to API...", Toast.LENGTH_SHORT).show()
-                }
-
-                // Initialize with API data
-                cardRepository.initializeWithApi()
-
-                // Get available batches from API
-                val batches = cardRepository.getAvailableBatches()
-
-                if (batches.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, "No active batches found in API", Toast.LENGTH_LONG).show()
-                    }
-                    return@launch
-                }
-
-                // Update ViewModel with API batches
-                CardReaderViewModel.instance.updateAvailableBatches(batches)
-
-                // Show success message
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Connected! ${batches.size} batches available", Toast.LENGTH_SHORT).show()
-                }
-
-                Log.d(TAG, "Available batches loaded: $batches")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting up database: ${e.message}")
-                // Show error to user
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Failed to connect to API: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-
-            lifecycleScope.launch {
-                CardReaderViewModel.instance.selectedBatch.collect { batchName ->
-                    if (batchName.isNotEmpty()) {
-                        val batchNumber = batchName.replace("Batch ", "").trim().toInt()
-                        CardReaderViewModel.instance.startSession(batchNumber)
-                    }
-                }
-            }
-        }
     }
 
     override fun onResume() {
@@ -282,287 +301,87 @@ class MainActivity : ComponentActivity() {
         readingJob?.cancel()
 
         // Handle based on mode
-        if (isEnquiryMode) {
-            processEnquiryNFCTag(tag, isoDep)
-        }else {
-            // Batch verification logic
-            val selectedBatch = CardReaderViewModel.instance.getCurrentBatch()
-            if (selectedBatch.isEmpty()) {
-                Toast.makeText(this, "Please select a batch first", Toast.LENGTH_SHORT).show()
-                return
+        when {
+            isMainMenuActive -> {
+                // Main menu: Read and display card ID
+                processMainMenuNFCTAG(isoDep)
             }
-
-            processVerificationNFCTag(tag, isoDep, selectedBatch)
+            isCardReaderActive -> {
+                // Card reader screen: full verification
+                val selectedBatch = CardReaderViewModel.instance.getCurrentBatch()
+                if (selectedBatch.isEmpty()) {
+                    Toast.makeText(this, "Please select a batch first", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                processVerificationNFCTag(tag, isoDep, selectedBatch)
+            }
         }
     }
 
-    private fun processEnquiryNFCTag(tag: Tag, isoDep: IsoDep) {
+    private fun processMainMenuNFCTAG(isoDep: IsoDep) {
         readingJob = lifecycleScope.launch {
             try {
-                Log.d(TAG, "Starting enquiry card read")
-                val startTime = System.currentTimeMillis()
+                Log.d(TAG, "Reading card on main menu")
 
-                // Show immediate feedback to user
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Reading card for enquiry...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
                 }
 
-                // Read card data
                 val cardData = withContext(Dispatchers.IO) {
-                    withTimeout(5000L) {
+                    withTimeout(3000L) {
                         cardDataReader.readCardDataAsync(isoDep)
                     }
                 }
 
-                val totalTime = System.currentTimeMillis() - startTime
-                Log.d(TAG, "ENQUIRY CARD READ COMPLETED in ${totalTime}ms")
-                Log.d(TAG, "Card ID: ${cardData.cardId}")
 
-                // Process the card data on main thread
-                withContext(Dispatchers.Main) {
-                    if (cardData.cardId != null) {
-                        // Create a CardInfo object for enquiry (won't be added to verification list)
-                        performDirectEnquiry(cardData.cardId, totalTime)
+                if (cardData.cardId != null) {
+                    lastScannedCardId = cardData.cardId
 
-                        Toast.makeText(this@MainActivity, "Card read successfully", Toast.LENGTH_SHORT).show()
-
-                    } else {
-                        val message = "Could not read card ID (read time: ${totalTime}ms)"
-                        Log.w(TAG, message)
-                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-
-                        // Trigger error result
-                        val errorResult = CardRepository.CardEnquiryResult(
-                            cardExists = false,
-                            batchName = null,
-                            isVerified = false,
-                            message = "Could not read card ID",
-                            batchCard = null,
-                            verifiedCard = null
-                        )
-                        CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "UNKNOWN_ID", totalTime)
-
-
+                    // Call API to verify card
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Verifying card",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
+
+                    val apiResponse = ApiService.verifyCard(cardData.cardId)
+
+                    withContext(Dispatchers.Main) {
+                        // Store response and show dialog
+                        verificationCardId = cardData.cardId
+                        val isIllegal = apiResponse.data?.get("isIllegal") as? Boolean ?: true
+                        verificationResponse = apiResponse.copy(
+                            success = !isIllegal
+                        )
+                        showVerificationDialog = true
+                    }
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Could not read card ID",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Card read timeout after 5 seconds")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Card read timeout (>5s)", Toast.LENGTH_LONG).show()
-
-                    // Trigger timeout error result
-                    val errorResult = CardRepository.CardEnquiryResult(
-                        cardExists = false,
-                        batchName = null,
-                        isVerified = false,
-                        message = "Card read timeout after 5 seconds",
-                        batchCard = null,
-                        verifiedCard = null
-                    )
-                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "TIMEOUT", 5000)
-
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Card read timeout",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error processing card: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
-
-                    // Trigger general error result
-                    val errorResult = CardRepository.CardEnquiryResult(
-                        cardExists = false,
-                        batchName = null,
-                        isVerified = false,
-                        message = "Error reading card: ${e.message}",
-                        batchCard = null,
-                        verifiedCard = null
-                    )
-                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, "ERROR", 0)
-
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
-        }
-    }
-
-    private fun performDirectEnquiry(cardId: String, readTimeMs: Long) {
-        lifecycleScope.launch {
-            try {
-
-                // Start searching
-                CardReaderViewModel.instance.setEnquirySearching(true)
-
-                Log.d(TAG, "Starting direct enquiry for card: $cardId")
-
-                // Show that we're searching
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@MainActivity, "Searching across batches...", Toast.LENGTH_SHORT).show()
-//                }
-
-                // Perform the global enquiry
-                val enquiryResult = withContext(Dispatchers.IO) {
-                    performDirectApiEnquiry(cardId)
-                }
-
-                Log.d(TAG, "Direct enquiry completed. Result: ${enquiryResult.message}")
-
-                // Trigger the result in the ViewModel - this will show the dialog
-                withContext(Dispatchers.Main) {
-                    //Stop searching
-                    CardReaderViewModel.instance.setEnquirySearching(false)
-                    //Trigger the result in the ViewModel - this will show the dialog
-                    CardReaderViewModel.instance.triggerEnquiryResult(enquiryResult,cardId, readTimeMs)
-
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during direct enquiry: ${e.message}")
-
-                withContext(Dispatchers.Main) {
-                    // Stop searching on error
-                    CardReaderViewModel.instance.setEnquirySearching(false)
-                    val errorResult = CardRepository.CardEnquiryResult(
-                        cardExists = false,
-                        batchName = null,
-                        isVerified = false,
-                        message = "Error during enquiry: ${e.message}",
-                        batchCard = null,
-                        verifiedCard = null
-                    )
-                    CardReaderViewModel.instance.triggerEnquiryResult(errorResult, cardId, readTimeMs)
-                }
-            }
-        }
-    }
-
-    private suspend fun performDirectApiEnquiry(cardId: String): CardRepository.CardEnquiryResult {
-        return try {
-            Log.d(TAG, "Making direct API call for card: $cardId")
-
-            // Use the direct API endpoint for enquiry
-            val enquiryRequest = EnquireCardRequest(cardId = cardId)
-            val apiResponse = ApiService.api.enquireCard(enquiryRequest)
-
-            Log.d(TAG, "API Response - found: ${apiResponse.data?.found}")
-            Log.d(TAG, "API Response - batchNumber: ${apiResponse.data?.batchNumber}")
-            Log.d(TAG, "API Response - batchName: ${apiResponse.data?.batchName}")
-            Log.d(TAG, "API Response - message: ${apiResponse.message}")
-
-            // Extract data from the nested structure
-            val cardData = apiResponse.data
-            val cardExists = cardData?.found == true
-            val batchNumber = cardData?.batchNumber
-            val batchName = cardData?.batchName
-
-            Log.d(TAG, "Extracted - cardExists: $cardExists, batchName: '$batchName', batchNumber: $batchNumber")
-
-            // Convert API response to CardEnquiryResult
-            CardRepository.CardEnquiryResult(
-                cardExists = cardExists,
-                batchName = batchName, // Use the full batch name from API: "Batch 10 - Port Stuart Cards"
-                isVerified = cardData?.status == "ACTIVE", // Assuming ACTIVE status means verified
-                message = apiResponse.message,
-                batchCard = null, // API doesn't return full batch card details in enquiry
-                verifiedCard = null // API doesn't return full verified card details in enquiry
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during direct API enquiry: ${e.message}")
-            CardRepository.CardEnquiryResult(
-                cardExists = false,
-                batchName = null,
-                isVerified = false,
-                message = "Failed to query card database: ${e.message}",
-                batchCard = null,
-                verifiedCard = null
-            )
-        }
-    }
-
-    // ADDED: Comprehensive enquiry method
-    private suspend fun performComprehensiveEnquiry(cardId: String): CardRepository.CardEnquiryResult {
-        return try {
-            Log.d(TAG, "Starting comprehensive enquiry for card: $cardId")
-
-            // Get all available batches
-            val batches = CardReaderViewModel.instance.availableBatches.value
-
-            if (batches.isEmpty()) {
-                Log.w(TAG, "No batches available for search")
-                return CardRepository.CardEnquiryResult(
-                    cardExists = false,
-                    batchName = null,
-                    isVerified = false,
-                    message = "No batches available for search",
-                    batchCard = null,
-                    verifiedCard = null
-                )
-            }
-
-            Log.d(TAG, "Searching across ${batches.size} batches: ${batches.joinToString(", ")}")
-
-            // Search through each batch
-            for (batchName in batches) {
-                try {
-                    Log.d(TAG, "Checking batch: $batchName")
-
-                    // Load the specific batch
-                    val batchLoaded = cardRepository.loadSpecificBatch(batchName)
-
-                    if (!batchLoaded) {
-                        Log.w(TAG, "Failed to load batch: $batchName")
-                        continue
-                    }
-
-                    // Search for the card in this batch
-                    val verificationResult = cardRepository.verifyScannedCardAgainstBatch(
-                        scannedCardId = cardId,
-                        targetBatchName = batchName,
-                        holderName = null,
-                        additionalData = emptyMap()
-                    )
-
-                    if (verificationResult.isSuccess) {
-                        Log.d(TAG, "✅ Card found in batch: $batchName")
-
-
-                        return CardRepository.CardEnquiryResult(
-                            cardExists = true,
-                            batchName = batchName,
-                            isVerified = true,
-                            message = "Card found and verified in $batchName",
-                            batchCard = verificationResult.batchCard,
-                            verifiedCard = null
-                        )
-                    }
-
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error searching batch $batchName: ${e.message}")
-                    // Continue searching other batches
-                    continue
-                }
-            }
-
-            // Card not found in any batch
-            Log.d(TAG, "❌ Card not found in any of the ${batches.size} available batches")
-
-            return CardRepository.CardEnquiryResult(
-                cardExists = false,
-                batchName = null,
-                isVerified = false,
-                message = "Card not found in any of the ${batches.size} available batches",
-                batchCard = null,
-                verifiedCard = null
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during comprehensive enquiry: ${e.message}")
-            return CardRepository.CardEnquiryResult(
-                cardExists = false,
-                batchName = null,
-                isVerified = false,
-                message = "Error during search: ${e.message}",
-                batchCard = null,
-                verifiedCard = null
-            )
         }
     }
 
@@ -619,97 +438,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-//    private fun processVerificationNFCTag(tag: Tag, isoDep: IsoDep, selectedBatch: String) {
-//        readingJob = lifecycleScope.launch {
-//            try {
-//                Log.d(TAG, "=== STARTING TEST MODE CARD READ ===")
-//                val startTime = System.currentTimeMillis()
-//
-//                // Show immediate feedback to user
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
-//                }
-//
-//                if (isTestMode) {
-//                    // TEST MODE: Just read card and add to list without verification
-//                    val cardData = withContext(Dispatchers.IO) {
-//                        withTimeout(2000L) {
-//                            cardDataReader.readCardDataAsync(isoDep)
-//                        }
-//                    }
-//
-//                    val totalTime = System.currentTimeMillis() - startTime
-//                    Log.d(TAG, "TEST MODE - Card read completed in ${totalTime}ms")
-//
-//                    withContext(Dispatchers.Main) {
-//                        val cardInfo = CardInfo(
-//                            id = cardData.cardId ?: "UNKNOWN_${System.currentTimeMillis()}",
-//                            timestamp = System.currentTimeMillis(),
-//                            additionalInfo = buildString {
-////                                appendLine("TEST MODE - No verification")
-//                                cardData.holderName?.let {
-//                                    if (it.isNotBlank()) appendLine("Name: $it")
-//                                }
-//                                appendLine("Read time: ${totalTime}ms")
-//                            }.trim(),
-//                            techList = tag.techList.toList(),
-//                            verificationStatus = "TEST MODE",
-//                            batchName = "TEST",
-//                            isVerified = true // Mark as verified for UI purposes
-//                        )
-//
-//                        // Add to UI
-//                        CardReaderViewModel.instance.addCard(cardInfo)
-//
-//                        Toast.makeText(
-//                            this@MainActivity,
-//                            "Card added (Test Mode)",
-//                            Toast.LENGTH_SHORT
-//                        ).show()
-//                    }
-//                } else {
-//                    // ORIGINAL VERIFICATION CODE (keep existing logic)
-//                    val cardData = withContext(Dispatchers.IO) {
-//                        withTimeout(2000L) {
-//                            cardDataReader.readCardDataAsync(isoDep)
-//                        }
-//                    }
-//
-//                    val totalTime = System.currentTimeMillis() - startTime
-//                    Log.d(TAG, "CARD READ COMPLETED in ${totalTime}ms")
-//
-//                    withContext(Dispatchers.Main) {
-//                        if (cardData.cardId != null) {
-//                            performFastCardVerification(cardData, tag, totalTime, selectedBatch)
-//                        } else {
-//                            val message = "Could not read card ID (read time: ${totalTime}ms)"
-//                            Log.w(TAG, message)
-//                            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-//                            addErrorCardToUI(tag, "NO_ID_FOUND", totalTime, selectedBatch)
-//                        }
-//                    }
-//                }
-//            } catch (e: TimeoutCancellationException) {
-//                Log.e(TAG, "Card read timeout after 2 seconds")
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@MainActivity, "Card read timeout (>2s)", Toast.LENGTH_LONG).show()
-//                    if (!isTestMode) {
-//                        addErrorCardToUI(tag, "TIMEOUT", 2000, selectedBatch)
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error processing card: ${e.message}")
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@MainActivity, "Error reading card: ${e.message}", Toast.LENGTH_LONG).show()
-//                    if (!isTestMode) {
-//                        addErrorCardToUI(tag, "ERROR: ${e.message}", 0, selectedBatch)
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     private suspend fun performFastCardVerification(
         cardData: OptimizedCardDataReader.CardData,
         tag: Tag,
@@ -741,10 +469,6 @@ class MainActivity : ComponentActivity() {
                 // SUCCESS - Card found in the correct batch
                 Log.d(TAG, "✅ VERIFICATION SUCCESS!")
 
-
-                // Play success sound
-//                playSuccessSound(this)
-
                 val cardInfo = CardInfo(
                     id = cardData.cardId!!,
                     timestamp = System.currentTimeMillis(),
@@ -766,9 +490,6 @@ class MainActivity : ComponentActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-
-                // Update statistics
-                updateVerificationStats(targetBatch)
             } else {
                 // FAILED - Card not found in target batch
                 Log.d(TAG, "❌ VERIFICATION FAILED!")
@@ -797,19 +518,6 @@ class MainActivity : ComponentActivity() {
                     message = "Verification error: ${e.message}"
                 )
             }
-        }
-    }
-
-    private fun playSuccessSound(context: Context) {
-//        val mediaPlayer = MediaPlayer.create(context, R.raw.success)
-//        mediaPlayer.start()
-//        mediaPlayer.setOnCompletionListener { mp ->
-//            mp.release()
-//        }
-        try {
-            toneGenerator?.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 2000)
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not play success sound: ${e.message}")
         }
     }
 
@@ -861,61 +569,7 @@ class MainActivity : ComponentActivity() {
                     appendLine("Name: $it")
                 }
             }
-
-            // Performance info
-//            appendLine("Read: ${readTimeMs}ms | Verify: ${verificationTimeMs}ms")
-//
-//            // Additional info if available
-//            if (cardData.additionalInfo.isNotEmpty()) {
-//                cardData.additionalInfo.forEach { (key, value) ->
-//                    appendLine("$key: $value")
-//                }
-//            }
         }.trim()
-    }
-
-
-
-    @SuppressLint("DefaultLocale")
-    private fun updateVerificationStats(batchName: String) {
-        lifecycleScope.launch {
-            try {
-                val stats = cardRepository.getVerificationStats(batchName)
-                val statsMessage = "$batchName Progress: " +
-                        "${stats.verifiedCards}/${stats.totalCards} " +
-                        "(${String.format("%.1f", stats.completionPercentage)}%)"
-
-                Log.d(TAG, "Updated Stats: $statsMessage")
-                Log.d(TAG, "Total scans: ${stats.totalScans}, Remaining: ${stats.remainingCards}")
-
-                // Update ViewModel with latest stats
-//                CardReaderViewModel.instance.updateBatchStats(
-//                    totalCards = stats.totalCards,
-//                    verifiedCards = stats.verifiedCards
-//                )
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating stats: ${e.message}")
-            }
-        }
-    }
-
-    @SuppressLint("DefaultLocale")
-    private fun showVerificationStats(batchName: String) {
-        lifecycleScope.launch {
-            try {
-                val stats = cardRepository.getVerificationStats(batchName)
-                val statsMessage = "$batchName Progress: " +
-                        "${stats.verifiedCards}/${stats.totalCards} " +
-                        "(${String.format("%.1f", stats.completionPercentage)}%)"
-
-                Log.d(TAG, "Stats: $statsMessage")
-                Log.d(TAG, "Total scans: ${stats.totalScans}, Remaining: ${stats.remainingCards}")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting stats: ${e.message}")
-            }
-        }
     }
 
 }

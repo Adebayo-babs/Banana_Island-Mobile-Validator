@@ -1,66 +1,16 @@
 package com.example.cardapp
 
-import com.example.cardapp.model.SubmitScannedCardsRequest
-import com.example.cardapp.model.SubmitScannedCardsResponse
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.PUT
-import retrofit2.http.Path
-
-data class BatchInfo(
-    val batchName: String? = null,
-    val batchNumber: String? = null,
-    val totalCards: Int = 0,
-    val cards: List<String>? = null,
-    val description: String? = null
-)
-
-data class BatchResponse(
-    val status: String,
-    val statusCode: Int,
-    val message: String,
-    val data: Batch,
-    val metadata: Any? = null
-)
-
-data class Batch(
-    val batchNumber: Int,
-    val batchName: String,
-    val cardIds: List<String>,
-    val totalCards: Int,
-    val personalizationVendor: String,
-    val expiryDate: String,
-    val contactLga: String,
-    val createdAt: String,
-    val jobNumber: String,
-    val description: String,
-    val bankJobNumber: String,
-    val reorderFlag: Boolean,
-    val expectedRecords: Int,
-    val actualRecords: Int,
-    val integrityCheck: Boolean
-)
-
-data class BatchSummaryStats(
-    val totalBatches: Int = 0,
-    val totalCards: Int = 0,
-    val totalVerified: Int = 0,
-    val completionPercentage: Double = 0.0
-)
-
-data class BatchCompletionStats(
-    val batchNumber: String,
-    val totalCards: Int,
-    val scannedCards: Int,
-    val verifiedCards: Int,
-    val completionPercentage: Double,
-    val discrepancies: Int = 0
-)
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.net.URL
+import java.net.UnknownHostException
 
 data class VerifyCardRequest(
     val cardId: String,
@@ -78,16 +28,6 @@ data class VerifyCardResponse(
     val alreadyScanned: Boolean = false
 )
 
-data class EnquireCardRequest(
-    val cardId: String
-)
-
-data class EnquireCardResponse(
-    val status: String,
-    val statusCode: Int,
-    val message: String,
-    val data: CardData?
-)
 
 data class CardData(
     val cardId: String,
@@ -108,181 +48,214 @@ data class CardHolder(
 )
 
 
-data class ScanRecord(
-    val timestamp: String,
-    val batchNumber: String,
-    val verified: Boolean
+
+
+data class VerifyQRRequest(
+    val qrData: String
 )
 
-data class SubmitCorrectionRequest(
-    val cardId: String,
-    val correctBatch: String,
-    val reason: String? = null,
-    val notes: String? = null
-)
-
-data class SubmitCorrectionResponse(
+data class VerifyQRResponse(
     val success: Boolean,
     val message: String,
-    val correctionId: String? = null
+    val data: Map<String, Any>? = null
 )
 
-//data class SubmitScannedCardsRequest(
-//    val sessionId: String? = null,
-//    val batchNumber: String,
-//    val scannedCards: List<ScannedCardData>,
-//    val scannerInfo: ScannerInfo? = null
-//)
-
-data class ScannedCardData(
-    val cardId: String,
-    val timestamp: String,
-    val holderName: String? = null,
-    val verified: Boolean,
-    val additionalData: Map<String, String>? = null
+data class CardVerificationRequest(
+    val cardId: String
 )
 
-data class ScannerInfo(
-    val deviceId: String? = null,
-    val appVersion: String? = null,
-    val scannerName: String? = null
-)
-
-data class BatchListResponse(
-    val status: String,
-    val statusCode: Int,
+data class CardVerificationResponse(
+    val success: Boolean,
     val message: String,
-    val data: List<BatchSummary>
+    val data: Map<String, Any>? = null
 )
 
-
-data class FetchBatchResponse(
-    val status: String,
-    val statusCode: Int,
-    val message: String,
-    val data: Batch?
-)
-
-
-data class BatchSummary(
-    val batchId: Int,
-    val batchNo: Int? = null,
-    val name: String,
-    val description: String? = null,
-    val personalizationVendor: String? = null,
-    val totalRecords: Int,
-    val status: String, // "ACTIVE", "CANCELLED", etc.
-    val expiryMonth: Int? = null,
-    val expiryYear: Int? = null,
-    val contactLga: String? = null,
-    val createdAt: String? = null,
-    val lastUpdated: String? = null
-)
-
-data class FetchBatchRequest(
-    val batchNumber: Int
-)
-
-data class ApiResponse(
-    val status: String,
-    val message: String,
-    val data: Any? = null
-)
-
-
-
-
-// Retrofit API interface
-interface CardBatchApi {
-
-    // Get all available batches
-    @GET("/api/v1/card-batch-scanning/batches")
-    suspend fun getAllBatches(): BatchListResponse
-
-    // Fetch specific batch information
-    @POST("/api/v1/card-batch-scanning/fetch-batch")
-    suspend fun fetchBatch(@Body request: FetchBatchRequest): FetchBatchResponse
-
-    // Get batch summary statistics
-    @GET("/api/v1/card-batch-scanning/batches/summary-stats")
-    suspend fun getBatchSummaryStats(): BatchSummaryStats
-
-    // Get batch completion statistics
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/completion")
-    suspend fun getBatchCompletion(@Path("batchNumber") batchNumber: Int): BatchCompletionStats
-
-    // Get batch scanning dashboard
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/dashboard")
-    suspend fun getBatchDashboard(@Path("batchNumber") batchNumber: String): Map<String, Any>
-
-    // Verify card against batch
-    @POST("/api/v1/card-batch-scanning/verify-card")
-    suspend fun verifyCard(@Body request: VerifyCardRequest): VerifyCardResponse
-
-    // Enquire about card
-    @POST("/api/v1/card-batch-scanning/enquire-card")
-    suspend fun enquireCard(@Body request: EnquireCardRequest): EnquireCardResponse
-
-    // Submit correction
-    @POST("/api/v1/card-batch-scanning/submit-correction")
-    suspend fun submitCorrection(@Body request: SubmitCorrectionRequest): SubmitCorrectionResponse
-
-    // Submit scanned cards batch
-    @POST("/api/v1/card-batch-scanning/submit-scanned-cards")
-    suspend fun submitScannedCards(@Body request: SubmitScannedCardsRequest): Response<SubmitScannedCardsResponse>
-
-    // Get scan session details
-    @GET("/api/v1/card-batch-scanning/sessions/{sessionId}")
-    suspend fun getSessionDetails(@Path("sessionId") sessionId: String): Map<String, Any>
-
-    // Get scan history for batch
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/scan-history")
-    suspend fun getBatchScanHistory(@Path("batchNumber") batchNumber: String): List<ScanRecord>
-
-    // Get batch discrepancies
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/discrepancies")
-    suspend fun getBatchDiscrepancies(@Path("batchNumber") batchNumber: String): Map<String, Any>
-
-    // Validate batch integrity
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/integrity")
-    suspend fun validateBatchIntegrity(@Path("batchNumber") batchNumber: String): Map<String, Any>
-
-    // Generate batch report
-    @GET("/api/v1/card-batch-scanning/batches/{batchNumber}/report")
-    suspend fun generateBatchReport(@Path("batchNumber") batchNumber: String): Map<String, Any>
-
-    // Update batch scan statistics
-    @PUT("/api/v1/card-batch-scanning/batches/{batchNumber}/statistics")
-    suspend fun updateBatchStatistics(
-        @Path("batchNumber") batchNumber: String,
-        @Body stats: Map<String, Any>
-    ): Map<String, Any>
-
-    // Get pending corrections
-    @GET("/api/v1/card-batch-scanning/corrections/pending")
-    suspend fun getPendingCorrections(): List<Map<String, Any>>
-
-    // Apply correction
-    @PUT("/api/v1/card-batch-scanning/corrections/{correctionId}/apply")
-    suspend fun applyCorrection(@Path("correctionId") correctionId: String): Map<String, Any>
-
-    // Bulk apply corrections for batch
-    @PUT("/api/v1/card-batch-scanning/batches/{batchNumber}/corrections/bulk-apply")
-    suspend fun bulkApplyCorrections(@Path("batchNumber") batchNumber: String): Map<String, Any>
-
-    // Cleanup old scan sessions
-    @DELETE("/api/v1/card-batch-scanning/sessions/cleanup")
-    suspend fun cleanupOldSessions(): Map<String, Any>
-}
 
 // API Service singleton
 object ApiService {
-    private const val BASE_URL = "https://lasrra-internal-card-tracking-api.onrender.com/"
+    private const val TAG = "ApiService"
+    private const val BASE_URL = "http://10.65.10.127:3000"
+    private const val VERIFY_CARD_ENDPOINT = "/api/token/verify/card"
+    private const val VERIFY_QR_ENDPOINT = "/api/token/verify/qr"
+    private const val TIMEOUT = 5000
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+    suspend fun verifyCard(cardId: String): CardVerificationResponse = withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
 
-    val api: CardBatchApi = retrofit.create(CardBatchApi::class.java)
+        try {
+            Log.d(TAG, "=== VERIFY CARD REQUEST ===")
+            Log.d(TAG, "Card ID: $cardId")
+            Log.d(TAG, "URL: $BASE_URL$VERIFY_CARD_ENDPOINT")
+
+            val url = URL("$BASE_URL$VERIFY_CARD_ENDPOINT")
+            connection = url.openConnection() as HttpURLConnection
+
+            connection.apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                connectTimeout = TIMEOUT
+                readTimeout = TIMEOUT
+                doOutput = true
+                doInput = true
+            }
+
+            // Create request body
+            val jsonRequest = JSONObject().apply {
+                put("lagId", cardId)
+            }
+
+            Log.d(TAG, "Request body: ${jsonRequest.toString()}")
+
+            // Send Request
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(jsonRequest.toString())
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            Log.d(TAG, "Response code: $responseCode")
+
+            // Read response
+            val inputStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val response = BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                reader.readText()
+            }
+
+            Log.d(TAG, "Response gotten: $response")
+
+            // Parse response
+            val jsonResponse = JSONObject(response)
+
+            val dataMap = mutableMapOf<String, Any>()
+            jsonResponse.keys().forEach { key ->
+                when (val value = jsonResponse.get(key)) {
+                    is String, is Boolean, is Number -> dataMap[key] = value
+                    is org.json.JSONArray -> dataMap[key] = value
+                    else -> dataMap[key] = value.toString()
+                }
+            }
+
+            CardVerificationResponse(
+                success = responseCode in 200..299,
+                message = jsonResponse.optString("message", "Unknown response"),
+                data = dataMap
+            )
+        } catch (e: SocketTimeoutException) {
+            Log.e(TAG, "Connection timeout - Server not responding", e)
+            CardVerificationResponse(
+                success = false,
+                message = "Connection timeout. Please check:\n1. Server is running at $BASE_URL\n2. Device is on same network\n3. Firewall allows connection"
+            )
+        } catch (e: UnknownHostException) {
+            Log.e(TAG, "Unknown host - Cannot reach server", e)
+            CardVerificationResponse(
+                success = false,
+                message = "Cannot reach server at $BASE_URL\nPlease verify:\n1. Server IP address is correct\n2. Device has network connectivity"
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying card: ${e.message}", e)
+            CardVerificationResponse(
+                success = false,
+                message = "Network error: ${e.javaClass.simpleName}\n${e.message ?: "Unknown error"}"
+            )
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    suspend fun verifyQRCode(qrData: String): VerifyQRResponse = withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
+
+        try {
+            Log.d(TAG, "=== VERIFY QR REQUEST ===")
+            Log.d(TAG, "QR Data: $qrData")
+            Log.d(TAG, "URL: $BASE_URL$VERIFY_QR_ENDPOINT")
+
+            val url = URL("$BASE_URL$VERIFY_QR_ENDPOINT")
+            connection = url.openConnection() as HttpURLConnection
+
+            connection.apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                connectTimeout = TIMEOUT
+                readTimeout = TIMEOUT
+                doOutput = true
+                doInput = true
+            }
+
+            // Create request body
+            val jsonRequest = JSONObject().apply {
+                put("token", qrData)
+            }
+
+            Log.d(TAG, "Request body: $jsonRequest")
+
+            // Send Request
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(jsonRequest.toString())
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            Log.d(TAG, "QR Response code: $responseCode")
+
+            // Read response
+            val inputStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val response = BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                reader.readText()
+            }
+
+            Log.d(TAG, "QR Response: $response")
+
+            // Parse response
+            val jsonResponse = JSONObject(response)
+
+            val dataMap = mutableMapOf<String, Any>()
+            jsonResponse.keys().forEach { key ->
+                when (val value = jsonResponse.get(key)) {
+                    is String, is Boolean, is Number -> dataMap[key] = value
+                    is org.json.JSONArray -> dataMap[key] = value
+                    else -> dataMap[key] = value.toString()
+                }
+            }
+
+            VerifyQRResponse(
+                success = responseCode in 200..299 ,
+                message = jsonResponse.optString("message", "Unknown response"),
+                data = dataMap
+            )
+        } catch (e: SocketTimeoutException) {
+            Log.e(TAG, "QR Connection timeout - Server not responding", e)
+            VerifyQRResponse(
+                success = false,
+                message = "Connection timeout. Please check:\n1. Server is running at $BASE_URL\n2. Device is on same network\n3. Firewall allows connection"
+            )
+        } catch (e: UnknownHostException) {
+            Log.e(TAG, "QR Unknown host - Cannot reach server", e)
+            VerifyQRResponse(
+                success = false,
+                message = "Cannot reach server at $BASE_URL\nPlease verify:\n1. Server IP address is correct\n2. Device has network connectivity"
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying QR code: ${e.message}", e)
+            VerifyQRResponse(
+                success = false,
+                message = "Network error: ${e.javaClass.simpleName}\n${e.message ?: "Unknown error"}"
+            )
+        } finally {
+            connection?.disconnect()
+        }
+    }
 }

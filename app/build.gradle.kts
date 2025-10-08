@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.cardapp"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -51,6 +51,10 @@ dependencies {
 
     implementation(libs.androidx.foundation.layout.android)
     implementation(libs.androidx.foundation.layout.android)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.play.services.mlkit.barcode.scanning)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.espresso.core)
     coreLibraryDesugaring (libs.desugar.jdk.libs)
 
     implementation(libs.androidx.core.ktx)
@@ -76,6 +80,10 @@ dependencies {
     implementation ("androidx.room:room-runtime:2.5.0")
     implementation ("androidx.room:room-ktx:2.5.0")
     ksp("androidx.room:room-compiler:2.5.0")
+
+    // CameraX core + camera2 backend (required)
+    implementation("androidx.camera:camera-core:1.5.0")
+    implementation("androidx.camera:camera-camera2:1.5.0")
 
     // Coroutines
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

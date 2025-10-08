@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,8 +62,6 @@ fun SplashScreen(
     )
 
     LaunchedEffect(Unit) {
-
-        // Staggered animations for smooth entrance
 
         // 1. Fade in and scale icon
         launch {
@@ -115,8 +114,8 @@ fun SplashScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primaryContainer
+                        Color(0xFF006400),
+                        Color(0xFF00A86B)
                     )
                 )
             ),
@@ -129,19 +128,13 @@ fun SplashScreen(
         ) {
 
             Text(
-                text = "LASRRA CARD SCANNER",
+                text = "MOBILE APP VALIDATOR",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.padding(top = 16.dp)
             )
 
-//            Text(
-//                text = "NFC  Management System",
-//                fontSize = 16.sp,
-//                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-//                modifier = Modifier.padding(top = 8.dp)
-//            )
 
             LottieAnimation(
                 composition = composition,
@@ -150,7 +143,7 @@ fun SplashScreen(
             )
 
             Image(
-                painter = painterResource(id = R.drawable.lasrra), // Add your image to res/drawable
+                painter = painterResource(id = R.drawable.banana_island),
                 contentDescription = "App Logo",
                 modifier = Modifier
                     .size(250.dp),
