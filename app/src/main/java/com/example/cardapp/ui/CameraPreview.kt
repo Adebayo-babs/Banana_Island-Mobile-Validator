@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.ui
 
 import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector

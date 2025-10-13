@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing

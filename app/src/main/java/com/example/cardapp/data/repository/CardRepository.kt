@@ -1,10 +1,10 @@
-package com.example.cardapp.repository
+package com.example.cardapp.data.repository
 
 import android.util.Log
-import com.example.cardapp.model.BatchCard
-import com.example.cardapp.model.VerifiedCard
-import com.example.cardapp.model.database.BatchCardDao
-import com.example.cardapp.model.database.VerifiedCardDao
+import com.example.cardapp.data.local.entity.BatchCard
+import com.example.cardapp.data.local.entity.VerifiedCard
+import com.example.cardapp.data.local.dao.BatchCardDao
+import com.example.cardapp.data.local.dao.VerifiedCardDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -119,16 +119,6 @@ class CardRepository(
                     message = "Verification error: ${e.message}"
                 )
             }
-        }
-    }
-
-
-    // Clear current batch data
-    suspend fun clearCurrentBatch() {
-        withContext(Dispatchers.IO) {
-            currentlyLoadedBatch = null
-            currentBatchCardIds = emptyList()
-            Log.d(TAG, "Current batch data cleared")
         }
     }
 

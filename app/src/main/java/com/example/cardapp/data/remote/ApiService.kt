@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.data.remote
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -12,56 +12,10 @@ import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
 
-data class VerifyCardRequest(
-    val cardId: String,
-    val batchNumber: String? = null,
-    val holderName: String? = null,
-    val additionalData: Map<String, String>? = null
-)
-
-data class VerifyCardResponse(
-    val success: Boolean,
-    val message: String,
-    val cardId: String? = null,
-    val batchNumber: String? = null,
-    val isVerified: Boolean = false,
-    val alreadyScanned: Boolean = false
-)
-
-
-data class CardData(
-    val cardId: String,
-    val found: Boolean,
-    val batchNumber: Int?,
-    val batchName: String?,
-    val cardHolder: CardHolder?,
-    val status: String?,
-    val deliveryStatus: String?
-)
-
-data class CardHolder(
-    val surname: String,
-    val firstname: String,
-    val middlename: String,
-    val contactLga: String,
-    val stateOfResidence: String
-)
-
-
-
-
-data class VerifyQRRequest(
-    val qrData: String
-)
-
 data class VerifyQRResponse(
     val success: Boolean,
     val message: String,
     val data: Map<String, Any>? = null
-)
-
-data class CardVerificationRequest(
-    val cardId: String
 )
 
 data class CardVerificationResponse(
@@ -74,10 +28,10 @@ data class CardVerificationResponse(
 // API Service singleton
 object ApiService {
     private const val TAG = "ApiService"
-    private const val BASE_URL = "http://10.65.10.127:3000"
+    private const val BASE_URL = "http://10.65.10.151:3000"
     private const val VERIFY_CARD_ENDPOINT = "/api/token/verify/card"
     private const val VERIFY_QR_ENDPOINT = "/api/token/verify/qr"
-    private const val TIMEOUT = 5000
+    private const val TIMEOUT = 2000
 
     suspend fun verifyCard(cardId: String): CardVerificationResponse = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
@@ -150,7 +104,7 @@ object ApiService {
             Log.e(TAG, "Connection timeout - Server not responding", e)
             CardVerificationResponse(
                 success = false,
-                message = "Connection timeout. Please check:\n1. Server is running at $BASE_URL\n2. Device is on same network\n3. Firewall allows connection"
+                message = "Connection timeout."
             )
         } catch (e: UnknownHostException) {
             Log.e(TAG, "Unknown host - Cannot reach server", e)
@@ -240,7 +194,7 @@ object ApiService {
             Log.e(TAG, "QR Connection timeout - Server not responding", e)
             VerifyQRResponse(
                 success = false,
-                message = "Connection timeout. Please check:\n1. Server is running at $BASE_URL\n2. Device is on same network\n3. Firewall allows connection"
+                message = "Connection timeout."
             )
         } catch (e: UnknownHostException) {
             Log.e(TAG, "QR Unknown host - Cannot reach server", e)

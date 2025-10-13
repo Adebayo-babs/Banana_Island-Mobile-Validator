@@ -1,4 +1,4 @@
-package com.example.cardapp.model
+package com.example.cardapp.data.local.entity
 
 data class SubmittedCardData(
     val cardId: String,

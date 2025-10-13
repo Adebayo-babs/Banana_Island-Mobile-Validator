@@ -1,11 +1,13 @@
-package com.example.cardapp.model.database
+package com.example.cardapp.data.local.database
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.cardapp.model.BatchCard
-import com.example.cardapp.model.VerifiedCard
+import com.example.cardapp.data.local.dao.BatchCardDao
+import com.example.cardapp.data.local.dao.VerifiedCardDao
+import com.example.cardapp.data.local.entity.BatchCard
+import com.example.cardapp.data.local.entity.VerifiedCard
 
 @Database(
     entities = [BatchCard::class, VerifiedCard::class],

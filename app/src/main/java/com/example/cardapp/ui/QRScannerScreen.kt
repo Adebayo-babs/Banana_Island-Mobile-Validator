@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.ui
 
 import android.Manifest.permission.CAMERA
 import android.content.pm.PackageManager

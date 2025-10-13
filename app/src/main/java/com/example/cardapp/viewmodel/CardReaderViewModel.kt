@@ -2,12 +2,11 @@ package com.example.cardapp.viewmodel
 
 import android.content.ContentValues.TAG
 import android.util.Log
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cardapp.model.CardInfo
-import com.example.cardapp.model.ScanningSession
-import com.example.cardapp.repository.CardRepository
+import com.example.cardapp.data.local.entity.ScanningSession
+import com.example.cardapp.data.repository.CardRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,27 +77,13 @@ class CardReaderViewModel : ViewModel() {
             _availableBatches.value = repository?.getAvailableBatches() ?: emptyList()
         }
     }
-    // Mutable list for backward compatibility
-    val cardList = mutableStateListOf<CardInfo>()
 
     // Repository for enquiry operations
     private var repository: CardRepository? = null
 
     fun setRepository(cardRepository: CardRepository) {
         this.repository = cardRepository
-
-        // Load initial batch stats
-//        updateBatchStats()
     }
-
-
-    //Clear Enquiry Result
-    fun clearEnquiryResult() {
-        _enquiryResult.value = null
-    }
-
-
-    fun getRepository(): CardRepository? = repository
 
 
     // Set selected batch
@@ -114,18 +99,8 @@ class CardReaderViewModel : ViewModel() {
         )
     }
 
-    fun dismissDialog() {
-        _dialogState.value = DialogState(
-            showDialog = false,
-            title = "",
-            message = ""
-        )
-    }
-
     // Get current selected batch
     fun getCurrentBatch(): String = _selectedBatch.value
-
-
 
     fun updateAvailableBatches(batches: List<String>) {
         _availableBatches.value = batches
@@ -134,44 +109,6 @@ class CardReaderViewModel : ViewModel() {
             setSelectedBatch(batches.first())
         }
     }
-
-
-
-
-    fun clearCards() {
-        cardList.clear()
-        _cards.value = emptyList()
-    }
-
-
-    // NEW: Method to clear everything after successful submission
-    fun clearSessionAfterSubmission() {
-        viewModelScope.launch {
-            try {
-                // Clear cards list
-                _cards.value = emptyList()
-
-                // Clear selected batch
-                _selectedBatch.value = ""
-
-                // Reset batch stats
-                _batchStats.value = BatchStats(0, 0)
-
-                // Clear any cached batch data
-                repository?.clearCurrentBatch()
-
-                Log.d(TAG, "Session cleared after successful submission")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error clearing session: ${e.message}")
-            }
-        }
-    }
-
-
-
-
-
 
     // In CardReaderViewModel, replace the addCard method with this:
     fun addCard(cardInfo: CardInfo) {
@@ -201,27 +138,5 @@ class CardReaderViewModel : ViewModel() {
             }
         }
     }
-
-
-    // Add method to get current session stats
-    fun getCurrentSessionStats(): SessionStats {
-        val session = _currentSession.value
-        val verifiedCards = _cards.value.count { it.isVerified }
-
-        return SessionStats(
-            sessionId = session?.sessionId ?: "",
-            totalScanned = verifiedCards,
-            sessionActive = session != null,
-            startTime = session?.startTime ?: ""
-        )
-    }
-
-    data class SessionStats(
-        val sessionId: String,
-        val totalScanned: Int,
-        val sessionActive: Boolean,
-        val startTime: String
-    )
-
 
 }

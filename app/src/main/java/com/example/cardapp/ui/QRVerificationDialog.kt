@@ -1,4 +1,4 @@
-package com.example.cardapp
+package com.example.cardapp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

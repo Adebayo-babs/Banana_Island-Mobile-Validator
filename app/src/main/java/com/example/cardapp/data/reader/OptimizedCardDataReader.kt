@@ -1,4 +1,4 @@
-package com.example.cardapp.repository
+package com.example.cardapp.data.reader
 
 import android.annotation.SuppressLint
 import android.nfc.tech.IsoDep

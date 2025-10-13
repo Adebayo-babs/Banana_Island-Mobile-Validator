@@ -1,12 +1,8 @@
 package com.example.cardapp
 
-import android.annotation.SuppressLint
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioManager
-import android.media.MediaPlayer
 import android.media.ToneGenerator
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -28,9 +24,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.cardapp.model.CardInfo
-import com.example.cardapp.model.database.CardDatabase
-import com.example.cardapp.repository.CardRepository
-import com.example.cardapp.repository.OptimizedCardDataReader
+import com.example.cardapp.data.local.database.CardDatabase
+import com.example.cardapp.data.repository.CardRepository
+import com.example.cardapp.data.reader.OptimizedCardDataReader
+import com.example.cardapp.data.remote.ApiService
+import com.example.cardapp.data.remote.CardVerificationResponse
+import com.example.cardapp.data.remote.VerifyQRResponse
+import com.example.cardapp.ui.CardVerificationDialog
+import com.example.cardapp.ui.MainMenuScreen
+import com.example.cardapp.ui.QRScannerScreen
+import com.example.cardapp.ui.QRVerificationDialog
+import com.example.cardapp.ui.SplashScreen
 import com.example.cardapp.ui.theme.CardAppTheme
 import com.example.cardapp.viewmodel.CardReaderViewModel
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +54,6 @@ class MainActivity : ComponentActivity() {
     private enum class Screen {
         SPLASH,
         MAIN_MENU,
-        CARD_READER,
         QR_SCANNER
     }
 
@@ -127,16 +130,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        Screen.CARD_READER -> {
-                            CardReaderScreen(
-                                onBackClick = {
-                                    isCardReaderActive = false
-                                    isMainMenuActive = true
-                                    currentScreen = Screen.MAIN_MENU
-
-                                }
-                            )
-                        }
+//                        Screen.CARD_READER -> {
+//                            CardReaderScreen(
+//                                onBackClick = {
+//                                    isCardReaderActive = false
+//                                    isMainMenuActive = true
+//                                    currentScreen = Screen.MAIN_MENU
+//
+//                                }
+//                            )
+//                        }
 
                         Screen.QR_SCANNER -> {
                             QRScannerScreen(
