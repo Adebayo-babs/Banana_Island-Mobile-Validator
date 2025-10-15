@@ -159,8 +159,8 @@ fun CardVerificationDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Additional Data (if available)
-                if (!additionalData.isNullOrEmpty()) {
+                // Artisan Details Card - Show ALL data
+                if (additionalData != null && additionalData.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -174,34 +174,21 @@ fun CardVerificationDialog(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = "Details",
+                                text = "Artisan Details",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
+                            // Filter out isIllegal and show all other fields
+//                            val filteredData = additionalData.filterKeys { it != "isIllegal" }
+
                             additionalData.forEach { (key, value) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = key.replaceFirstChar { it.uppercase() },
-                                        fontSize = 13.sp,
-                                        color = Color.Gray
-                                    )
-                                    Text(
-                                        text = value.toString(),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Black,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                }
+                                DetailRow(
+                                    label = key.replaceFirstChar { it.uppercase() },
+                                    value = value.toString()
+                                )
                             }
                         }
                     }

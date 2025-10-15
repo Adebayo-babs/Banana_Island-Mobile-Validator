@@ -16,7 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -126,39 +126,39 @@ fun QRVerificationDialog(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // QR Data Card
-                if (qrData.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF5F5F5)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                text = "QR Code",
-                                fontSize = 12.sp,
-                                color = Color.Gray,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = qrData,
-                                fontSize = 16.sp,
-                                color = Color.Black,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
+//                if (qrData.isNotEmpty()) {
+//                    Card(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        colors = CardDefaults.cardColors(
+//                            containerColor = Color(0xFFF5F5F5)
+//                        ),
+//                        shape = RoundedCornerShape(12.dp)
+//                    ) {
+//                        Column(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(16.dp)
+//                        ) {
+//                            Text(
+//                                text = "QR Code",
+//                                fontSize = 12.sp,
+//                                color = Color.Gray,
+//                                fontWeight = FontWeight.Medium
+//                            )
+//                            Text(
+//                                text = qrData,
+//                                fontSize = 16.sp,
+//                                color = Color.Black,
+//                                fontWeight = FontWeight.SemiBold,
+//                                modifier = Modifier.padding(top = 4.dp)
+//                            )
+//                        }
+//                    }
+//
+//                    Spacer(modifier = Modifier.height(16.dp))
+//                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Additional Data (if available)
+                // Artisan Details Card - Show ALL data
                 if (additionalData != null && additionalData.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -173,34 +173,21 @@ fun QRVerificationDialog(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = "Details",
+                                text = "Artisan Details",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
+                            // Filter out isIllegal and show all other fields
+//                            val filteredData = additionalData.filterKeys { it != "isIllegal" }
+
                             additionalData.forEach { (key, value) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = key.replaceFirstChar { it.uppercase() },
-                                        fontSize = 13.sp,
-                                        color = Color.Gray
-                                    )
-                                    Text(
-                                        text = value.toString(),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Black,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                }
+                                DetailRow(
+                                    label = key.replaceFirstChar { it.uppercase() },
+                                    value = value.toString()
+                                )
                             }
                         }
                     }
@@ -229,7 +216,7 @@ fun QRVerificationDialog(
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                     Icon(
-                        imageVector = Icons.Filled.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
@@ -241,3 +228,4 @@ fun QRVerificationDialog(
         }
     }
 }
+

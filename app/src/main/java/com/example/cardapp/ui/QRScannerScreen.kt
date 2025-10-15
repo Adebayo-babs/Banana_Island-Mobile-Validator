@@ -45,13 +45,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun QRScannerScreen(
     onBackClick: () -> Unit,
-    onQRCodeScanned: (String) -> Unit
+    onQRCodeScanned: (String) -> Unit,
+    resetScanning: Int = 0
 ) {
 
     BackHandler { onBackClick() }
 
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -63,7 +63,6 @@ fun QRScannerScreen(
     }
 
     var isScanning by remember { mutableStateOf(true) }
-    var scannedCode by remember { mutableStateOf<String?>(null)}
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -75,6 +74,11 @@ fun QRScannerScreen(
         if (!hasCameraPermission) {
             permissionLauncher.launch(CAMERA)
         }
+    }
+
+    // Reset scanning state when screen becomes visible again
+    LaunchedEffect(resetScanning) {
+        isScanning = true
     }
 
     Column(
@@ -127,84 +131,14 @@ fun QRScannerScreen(
                     Text("Grant Permission")
                 }
             }
-        } else if (scannedCode != null) {
-            // Result display
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                val lightGreen = Color(0xFF26A77B)
-                val darkGreen = Color(0xFF009970)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = lightGreen
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "QR Code Scanned",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White // good contrast on green
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = scannedCode!!,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                    }
-                }
-
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        scannedCode = null
-                        isScanning = true
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = darkGreen,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Scan Another")
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = { onQRCodeScanned(scannedCode!!) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = darkGreen,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Process QR Code")
-                }
-            }
         } else {
             // Camera preview
             Box(modifier = Modifier.fillMaxSize()) {
                 CameraPreview(
                     onQRCodeDetected = { code ->
                         if (isScanning) {
-                            scannedCode = code
                             isScanning = false
+                            onQRCodeScanned(code)
                         }
                     }
                 )

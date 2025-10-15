@@ -28,16 +28,16 @@ data class CardVerificationResponse(
 // API Service singleton
 object ApiService {
     private const val TAG = "ApiService"
-    private const val BASE_URL = "http://10.65.10.151:3000"
+    private const val BASE_URL = "http://192.168.0.25:3000"
     private const val VERIFY_CARD_ENDPOINT = "/api/token/verify/card"
     private const val VERIFY_QR_ENDPOINT = "/api/token/verify/qr"
-    private const val TIMEOUT = 2000
+    private const val TIMEOUT = 3000
 
     suspend fun verifyCard(cardId: String): CardVerificationResponse = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
 
         try {
-            Log.d(TAG, "=== VERIFY CARD REQUEST ===")
+            Log.d(TAG, "VERIFY CARD REQUEST")
             Log.d(TAG, "Card ID: $cardId")
             Log.d(TAG, "URL: $BASE_URL$VERIFY_CARD_ENDPOINT")
 

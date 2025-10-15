@@ -11,7 +11,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.cardapp"
+        applicationId = "com.example.cardapp.mobile_validator"
         minSdk = 23
         targetSdk = 34
         versionCode = 1

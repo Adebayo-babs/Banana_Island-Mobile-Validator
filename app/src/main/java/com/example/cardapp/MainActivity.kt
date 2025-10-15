@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -83,8 +84,7 @@ class MainActivity : ComponentActivity() {
     // Store last scanned card ID for main menu display
     private var lastScannedCardId by mutableStateOf<String?>(null)
 
-    // Store last scanned QR code for main menu display
-    private var lastScannedQRCode by mutableStateOf<String?>(null)
+    private var resetQRScanning by mutableIntStateOf(0)
 
     // Database and repository
     private lateinit var cardRepository: CardRepository
@@ -130,17 +130,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-//                        Screen.CARD_READER -> {
-//                            CardReaderScreen(
-//                                onBackClick = {
-//                                    isCardReaderActive = false
-//                                    isMainMenuActive = true
-//                                    currentScreen = Screen.MAIN_MENU
-//
-//                                }
-//                            )
-//                        }
-
                         Screen.QR_SCANNER -> {
                             QRScannerScreen(
                                 onBackClick = {
@@ -150,8 +139,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onQRCodeScanned = { qrCode ->
                                     processQRCode(qrCode)
-                                   // Toast.makeText(this, "QR Code: $qrCode", Toast.LENGTH_LONG).show()
-                                }
+                                },
+                                resetScanning = resetQRScanning
                             )
                         }
                     }
@@ -182,6 +171,7 @@ class MainActivity : ComponentActivity() {
                                 showQRVerificationDialog = false
                                 qrVerificationResponse = null
                                 qrVerificationData = ""
+                                resetQRScanning += 1
                             }
                         )
                     }
@@ -326,9 +316,9 @@ class MainActivity : ComponentActivity() {
             try {
                 Log.d(TAG, "Reading card on main menu")
 
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
-                }
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
+//                }
 
                 val cardData = withContext(Dispatchers.IO) {
                     withTimeout(3000L) {
@@ -391,13 +381,13 @@ class MainActivity : ComponentActivity() {
     private fun processVerificationNFCTag(tag: Tag, isoDep: IsoDep, selectedBatch: String) {
         readingJob = lifecycleScope.launch {
             try {
-                Log.d(TAG, "=== STARTING OPTIMIZED CARD READ ===")
+                Log.d(TAG, "STARTING OPTIMIZED CARD READ")
                 val startTime = System.currentTimeMillis()
 
                 // Show immediate feedback to user
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
-                }
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@MainActivity, "Reading card...", Toast.LENGTH_SHORT).show()
+//                }
 
                 // OPTIMIZED: Read card data with aggressive timeout
                 val cardData = withContext(Dispatchers.IO) {
